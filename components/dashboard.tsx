@@ -16,7 +16,7 @@ import {
 import { returns as ALL_RETURNS, fields as FLAGSHIP_FIELDS, FLAGSHIP_RETURN_ID } from "@/lib/data";
 import { VerificationBadge } from "@/components/affordance";
 import { prioritize, preparerLoads, type RankedReturn } from "@/lib/prioritize";
-import { balanceLabel, dueDisplay, daysUntil, relativeTime, NOW } from "@/lib/format";
+import { balanceLabel, dueDisplay, daysUntil, relativeTime, currency, NOW } from "@/lib/format";
 import { stageMeta } from "@/lib/status";
 import { cx } from "@/lib/cx";
 import { StageBadge } from "@/components/status-ui";
@@ -29,6 +29,14 @@ const PENDING_APPROVAL_RETURNS = new Set(
   FLAGSHIP_FIELDS.some((f) => f.verification === "awaiting_approval")
     ? [FLAGSHIP_RETURN_ID]
     : [],
+);
+
+/** One-line description of what the AI is asking for, per return. */
+const APPROVAL_SUMMARY: Record<string, string> = Object.fromEntries(
+  FLAGSHIP_FIELDS.filter((f) => f.verification === "awaiting_approval").map((f) => [
+    FLAGSHIP_RETURN_ID,
+    `${f.label}: proposed change from ${currency(f.value)} to ${currency(f.proposedValue ?? null)}`,
+  ]),
 );
 
 /** Three lenses on the same book of business. */
@@ -77,6 +85,11 @@ export function Dashboard() {
   }, [scopedReturns]);
 
   const queue = ranked.filter((r) => r.ret.stage !== "filed").slice(0, 4);
+
+  const approvalReturns = useMemo(
+    () => scopedReturns.filter((r) => PENDING_APPROVAL_RETURNS.has(r.id)),
+    [scopedReturns],
+  );
   const loads = useMemo(() => preparerLoads(ALL_RETURNS), []);
 
   // Table: filter → then paginate, so volume stays navigable.
@@ -230,6 +243,50 @@ export function Dashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+      )}
+
+      {/*
+        Approvals get their own band rather than another row in the queue.
+        A deadline-ranked list buries them, but an AI proposal is a distinct
+        kind of decision — fast to clear, and blocking until it is.
+      */}
+      {scope !== "manager" && approvalReturns.length > 0 && (
+        <section className="mt-6">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-ink-muted">
+              Waiting on your approval
+            </h2>
+            <span className="text-[12px] text-ink-subtle">
+              Proposed by AI — nothing changes until you decide
+            </span>
+          </div>
+          <div className="overflow-hidden rounded-lg border-2 border-primary-line bg-surface shadow-panel">
+            {approvalReturns.map((ret, i) => (
+              <Link
+                key={ret.id}
+                href={`/returns/${ret.id}`}
+                className={cx(
+                  "group flex items-center gap-3 px-4 py-3 hover:bg-primary-soft/40",
+                  i > 0 && "border-t border-line",
+                )}
+              >
+                <VerificationBadge verification="awaiting_approval" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-ink group-hover:text-primary">
+                    {ret.client}
+                  </span>
+                  <span className="block text-[12px] text-ink-subtle">
+                    {APPROVAL_SUMMARY[ret.id] ?? "An AI proposal needs your decision"}
+                  </span>
+                </span>
+                <ArrowRight
+                  className="h-4 w-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                  strokeWidth={2}
+                />
+              </Link>
+            ))}
           </div>
         </section>
       )}
