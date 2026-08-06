@@ -27,9 +27,13 @@ Land on `/`.
 
 - Point at the **four tiles**: "These aren't vanity metrics. Every one maps to a decision —
   'needs you now' is firm-owned *and* due within three days. Work I can actually move."
-- **Priority queue**: "Ranked by a real scoring function — deadline pressure, who owns the
-  next step, open flags. And it *shows its reasoning* right here: 'due today · 5 open flags.'
-  I never wanted a black-box ranking."
+- **"Waiting on your approval" band**: "Approvals are their own thing — the AI has proposed a
+  change and nothing happens until I decide. I pulled those out of the deadline queue because
+  they're a different kind of decision: fast to clear, but blocking until they are. I'll come
+  back to the Delgado one." *(This is your entry point to the workbench in section 2.)*
+- **Priority queue**: "Everything else is ranked by a real scoring function — deadline
+  pressure, who owns the next step, open flags. And it *shows its reasoning* right here:
+  'due today · 5 open flags.' I never wanted a black-box ranking."
 - Call out: "Returns waiting on the *client* get pushed **down**. I can't move them, so they
   shouldn't top my list."
 - Scroll to the table → **242 returns**, use search, a stage filter, pagination.
@@ -42,7 +46,7 @@ Land on `/`.
 
 ## 2 · The workbench — Challenges 01 + 08 (2 min)
 
-Click **Marcus & Elena Delgado**.
+Click **Marcus & Elena Delgado** in the approval band (or search `delgado`, press ↵).
 
 - Header: "Six-step status tracker — I'll come back to that."
 - Click **Wages**.
