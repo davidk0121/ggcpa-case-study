@@ -57,6 +57,96 @@ export interface DerivedBreakdown {
   refund: number;
 }
 
+/** One line of a shown derivation. */
+export interface DerivRow {
+  /** How this line combines with the running total. */
+  op: "+" | "−" | "=" | "→";
+  label: string;
+  value: number;
+  /** Present when the row corresponds to a real field you can navigate to. */
+  fieldId?: string;
+  /** Subtotals/intermediates aren't clickable and render quieter. */
+  subtotal?: boolean;
+}
+
+/**
+ * The human-readable derivation of a calculated line.
+ *
+ * Deliberately NOT "join every input with +": AGI *subtracts* adjustments and
+ * the refund *subtracts* tax, so a uniform plus sign would render arithmetic
+ * that is visibly false on the traceability screen.
+ */
+export function derivationFor(
+  fieldId: string,
+  values: Record<string, number | null>,
+  b: DerivedBreakdown,
+): { rows: DerivRow[]; result: DerivRow } | null {
+  const v = (id: string) => values[id] ?? 0;
+
+  switch (fieldId) {
+    case "f-total-income":
+      return {
+        rows: [
+          { op: "+", label: "Wages, salaries, tips", value: v("f-wages"), fieldId: "f-wages" },
+          { op: "+", label: "Taxable interest", value: v("f-interest"), fieldId: "f-interest" },
+          { op: "+", label: "Ordinary dividends", value: v("f-ord-div"), fieldId: "f-ord-div" },
+          { op: "+", label: "Capital gain", value: v("f-cap-gains"), fieldId: "f-cap-gains" },
+          { op: "+", label: "Partnership income (K-1)", value: v("f-k1-income"), fieldId: "f-k1-income" },
+        ],
+        result: { op: "=", label: "Total income", value: b.totalIncome },
+      };
+
+    case "f-agi":
+      return {
+        rows: [
+          { op: "+", label: "Total income", value: b.totalIncome, fieldId: "f-total-income" },
+          { op: "−", label: "HSA deduction", value: v("f-hsa"), fieldId: "f-hsa" },
+        ],
+        result: { op: "=", label: "Adjusted gross income", value: b.agi },
+      };
+
+    case "f-itemized":
+      return {
+        rows: [
+          { op: "+", label: "Home mortgage interest", value: v("f-mortgage-int"), fieldId: "f-mortgage-int" },
+          { op: "+", label: "State & local taxes (capped)", value: v("f-salt"), fieldId: "f-salt" },
+          { op: "+", label: "Charitable contributions", value: v("f-charity"), fieldId: "f-charity" },
+        ],
+        result: { op: "=", label: "Total itemized deductions", value: b.itemized },
+      };
+
+    case "f-total-tax":
+      return {
+        rows: [
+          { op: "+", label: "Adjusted gross income", value: b.agi, fieldId: "f-agi" },
+          {
+            op: "−",
+            label: `Deduction used (${b.deductionKind})`,
+            value: b.deductionUsed,
+            fieldId: b.deductionKind === "itemized" ? "f-itemized" : "f-standard",
+          },
+          { op: "=", label: "Taxable income", value: b.taxableIncome, subtotal: true },
+          { op: "→", label: "Tax from 2025 MFJ brackets", value: b.taxBeforeCredits, subtotal: true },
+          { op: "−", label: "Child tax credit", value: v("f-ctc"), fieldId: "f-ctc" },
+        ],
+        result: { op: "=", label: "Total tax", value: b.totalTax },
+      };
+
+    case "f-refund":
+      return {
+        rows: [
+          { op: "+", label: "Federal tax withheld", value: v("f-fed-wh"), fieldId: "f-fed-wh" },
+          { op: "+", label: "Estimated tax payments", value: v("f-est-pay"), fieldId: "f-est-pay" },
+          { op: "−", label: "Total tax", value: b.totalTax, fieldId: "f-total-tax" },
+        ],
+        result: { op: "=", label: "Refund", value: b.refund },
+      };
+
+    default:
+      return null;
+  }
+}
+
 export function computeReturn(
   values: Record<string, number | null>,
 ): { derived: Record<string, number>; breakdown: DerivedBreakdown } {

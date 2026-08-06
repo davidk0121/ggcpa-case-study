@@ -4,6 +4,7 @@ import type {
   TaxReturn,
 } from "./types";
 import { generateReturns } from "./generate";
+import { computeReturn } from "./compute";
 
 /* ================================================================== *
  * FLAGSHIP RETURN — the deep traceability demo (Challenges 01/08/10) *
@@ -838,6 +839,20 @@ export const featuredReturns: TaxReturn[] = [
 export const returns: TaxReturn[] = [
   ...featuredReturns,
   ...generateReturns(232, 0),
-];
+].map((r) =>
+  // Keep the flagship's dashboard summary derived from its actual field data,
+  // so the list view and the workbench can't drift apart.
+  r.id === FLAGSHIP_RETURN_ID
+    ? {
+        ...r,
+        openFlags: fields.filter(
+          (f) => f.verification === "flagged" || f.verification === "awaiting_approval",
+        ).length,
+        balance: computeReturn(
+          Object.fromEntries(fields.map((f) => [f.id, f.value])),
+        ).breakdown.refund,
+      }
+    : r,
+);
 
 export const returnsById = Object.fromEntries(returns.map((r) => [r.id, r]));

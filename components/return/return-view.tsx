@@ -5,7 +5,7 @@ import { Eye, Building2, CalendarClock } from "lucide-react";
 import type { ReturnField, FieldSection, TaxReturn } from "@/lib/types";
 import { fields as BASE_FIELDS } from "@/lib/data";
 import { computeReturn } from "@/lib/compute";
-import { currency, dueLabel, daysUntil } from "@/lib/format";
+import { currency, dueDisplay } from "@/lib/format";
 import { stageMeta } from "@/lib/status";
 import { cx } from "@/lib/cx";
 import { StageTracker } from "@/components/status-ui";
@@ -120,6 +120,7 @@ export function ReturnView({
       }),
   };
 
+  const due = dueDisplay(ret.dueDate, ret.stage);
   const byId = Object.fromEntries(fields.map((f) => [f.id, f]));
   const grouped = SECTION_ORDER.map((section) => ({
     section,
@@ -150,9 +151,15 @@ export function ReturnView({
                 <Building2 className="h-3.5 w-3.5" strokeWidth={2} />
                 {ret.preparer} · Reviewer {ret.reviewer}
               </span>
-              <span className={cx("flex items-center gap-1", daysUntil(ret.dueDate) <= 3 && "font-medium text-review")}>
+              <span
+                className={cx(
+                  "flex items-center gap-1",
+                  due.tone === "overdue" && "font-medium text-flag",
+                  due.tone === "soon" && "font-medium text-review",
+                )}
+              >
                 <CalendarClock className="h-3.5 w-3.5" strokeWidth={2} />
-                {dueLabel(ret.dueDate)}
+                {due.text}
               </span>
             </div>
           </div>
@@ -244,7 +251,18 @@ export function ReturnView({
 
         {/* inspector */}
         <div className="min-h-0 overflow-hidden bg-canvas">
-          <Inspector field={selected} audience={audience} actions={actions} />
+          {/*
+            `key` matters: without it React reuses the panel across selections,
+            so the edit form and any re-run AI result would carry over from the
+            previously selected field.
+          */}
+          <Inspector
+            key={selected.id}
+            field={selected}
+            allFields={fields}
+            audience={audience}
+            actions={actions}
+          />
         </div>
       </div>
     </div>

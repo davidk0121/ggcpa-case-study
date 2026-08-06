@@ -13,15 +13,23 @@ import {
   ChevronRight,
   Users,
 } from "lucide-react";
-import { returns as ALL_RETURNS } from "@/lib/data";
+import { returns as ALL_RETURNS, fields as FLAGSHIP_FIELDS, FLAGSHIP_RETURN_ID } from "@/lib/data";
+import { VerificationBadge } from "@/components/affordance";
 import { prioritize, preparerLoads, type RankedReturn } from "@/lib/prioritize";
-import { balanceLabel, dueLabel, daysUntil, relativeTime } from "@/lib/format";
+import { balanceLabel, dueDisplay, daysUntil, relativeTime, NOW } from "@/lib/format";
 import { stageMeta } from "@/lib/status";
 import { cx } from "@/lib/cx";
 import { StageBadge } from "@/components/status-ui";
 
 const ME = "You (Priya Anand)";
 const PAGE_SIZE = 12;
+
+/** Returns carrying an AI proposal that needs a human decision. */
+const PENDING_APPROVAL_RETURNS = new Set(
+  FLAGSHIP_FIELDS.some((f) => f.verification === "awaiting_approval")
+    ? [FLAGSHIP_RETURN_ID]
+    : [],
+);
 
 /** Three lenses on the same book of business. */
 type Scope = "mine" | "firm" | "manager";
@@ -103,7 +111,12 @@ export function Dashboard() {
             Good morning, Priya
           </h1>
           <p className="mt-0.5 text-[13px] text-ink-muted">
-            Tuesday, August 5 ·{" "}
+            {NOW.toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}{" "}
+            ·{" "}
             {scope === "manager"
               ? `${loads.length} preparers · ${ALL_RETURNS.filter((r) => r.stage !== "filed").length} active returns`
               : "Here's what needs a decision today."}
@@ -120,6 +133,7 @@ export function Dashboard() {
             <button
               key={s}
               onClick={() => reset(() => setScope(s))}
+              aria-pressed={scope === s}
               className={cx(
                 "rounded px-3 py-1 font-medium transition-colors",
                 scope === s ? "bg-primary text-surface" : "text-ink-muted hover:text-ink",
@@ -151,17 +165,17 @@ export function Dashboard() {
               Pressure = overdue × 14 + due-this-week × 6 + flags × 2
             </span>
           </div>
-          <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-panel">
-            <table className="w-full text-[13px]">
+          <div className="overflow-x-auto rounded-lg border border-line bg-surface shadow-panel">
+            <table className="w-full min-w-[860px] text-[13px]">
               <thead>
                 <tr className="border-b border-line bg-surface-sunken text-left text-[11px] uppercase tracking-wide text-ink-subtle">
-                  <th className="px-4 py-2 font-semibold">Preparer</th>
-                  <th className="px-4 py-2 font-semibold">Load</th>
-                  <th className="px-4 py-2 text-right font-semibold">Active</th>
-                  <th className="px-4 py-2 text-right font-semibold">Overdue</th>
-                  <th className="px-4 py-2 text-right font-semibold">Due ≤7d</th>
-                  <th className="px-4 py-2 text-right font-semibold">Flags</th>
-                  <th className="px-4 py-2 font-semibold">Most urgent</th>
+                  <th scope="col" className="px-4 py-2 font-semibold">Preparer</th>
+                  <th scope="col" className="px-4 py-2 font-semibold">Load</th>
+                  <th scope="col" className="px-4 py-2 text-right font-semibold">Active</th>
+                  <th scope="col" className="px-4 py-2 text-right font-semibold">Overdue</th>
+                  <th scope="col" className="px-4 py-2 text-right font-semibold">Due ≤7d</th>
+                  <th scope="col" className="px-4 py-2 text-right font-semibold">Flags</th>
+                  <th scope="col" className="px-4 py-2 font-semibold">Most urgent</th>
                 </tr>
               </thead>
               <tbody>
@@ -225,7 +239,7 @@ export function Dashboard() {
         <section className="mt-7">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[13px] font-semibold uppercase tracking-wide text-ink-muted">
-              Your priority queue
+              {scope === "mine" ? "Your priority queue" : "Firm priority queue"}
             </h2>
             <span className="text-[12px] text-ink-subtle">
               Top 4 of {metrics.active} active · ranked by deadline, ownership &amp; flags
@@ -261,7 +275,8 @@ export function Dashboard() {
 
         <div className="mb-2 flex flex-wrap gap-1">
           <FilterChip label="All" active={stageFilter === null} onClick={() => reset(() => setStageFilter(null))} />
-          {["in_prep", "in_review", "client_review", "ready_to_file", "intake", "filed"].map((s) => (
+          {/* Pipeline order — matches the 6-step status model everywhere else. */}
+          {["intake", "in_prep", "in_review", "client_review", "ready_to_file", "filed"].map((s) => (
             <FilterChip
               key={s}
               label={stageMeta(s as never).label}
@@ -271,23 +286,23 @@ export function Dashboard() {
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-panel">
-          <table className="w-full text-[13px]">
+        <div className="overflow-x-auto rounded-lg border border-line bg-surface shadow-panel">
+          <table className="w-full min-w-[880px] text-[13px]">
             <thead>
               <tr className="border-b border-line bg-surface-sunken text-left text-[11px] uppercase tracking-wide text-ink-subtle">
-                <th className="px-4 py-2 font-semibold">Client</th>
-                <th className="px-4 py-2 font-semibold">Stage</th>
-                <th className="px-4 py-2 font-semibold">Next action</th>
-                {scope !== "mine" && <th className="px-4 py-2 font-semibold">Preparer</th>}
-                <th className="px-4 py-2 font-semibold">Progress</th>
-                <th className="px-4 py-2 text-right font-semibold">Balance</th>
-                <th className="px-4 py-2 font-semibold">Due</th>
+                <th scope="col" className="px-4 py-2 font-semibold">Client</th>
+                <th scope="col" className="px-4 py-2 font-semibold">Stage</th>
+                <th scope="col" className="px-4 py-2 font-semibold">Next action</th>
+                {scope !== "mine" && <th scope="col" className="px-4 py-2 font-semibold">Preparer</th>}
+                <th scope="col" className="px-4 py-2 font-semibold">Progress</th>
+                <th scope="col" className="px-4 py-2 text-right font-semibold">Balance</th>
+                <th scope="col" className="px-4 py-2 font-semibold">Due</th>
               </tr>
             </thead>
             <tbody>
               {pageRows.map(({ ret }) => {
                 const bal = balanceLabel(ret.balance);
-                const dueDays = daysUntil(ret.dueDate);
+                const due = dueDisplay(ret.dueDate, ret.stage);
                 return (
                   <tr key={ret.id} className="group border-b border-line last:border-0 hover:bg-surface-sunken">
                     <td className="px-4 py-2.5">
@@ -299,7 +314,23 @@ export function Dashboard() {
                       </Link>
                     </td>
                     <td className="px-4 py-2.5"><StageBadge stage={ret.stage} /></td>
-                    <td className="px-4 py-2.5"><OwnerPill owner={ret.nextActionOwner} flags={ret.openFlags} /></td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <OwnerPill
+                          owner={ret.nextActionOwner}
+                          flags={ret.openFlags}
+                          done={ret.stage === "filed"}
+                        />
+                        {/*
+                          Same verification vocabulary as the workbench — an
+                          approval waiting on you is visible before you open the
+                          return, not only once you're inside it.
+                        */}
+                        {PENDING_APPROVAL_RETURNS.has(ret.id) && (
+                          <VerificationBadge verification="awaiting_approval" />
+                        )}
+                      </div>
+                    </td>
                     {scope !== "mine" && (
                       <td className="px-4 py-2.5 text-[12px] text-ink-muted">
                         {ret.preparer.replace("You (", "").replace(")", "")}
@@ -310,8 +341,19 @@ export function Dashboard() {
                       {bal.text}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={cx("tnum text-[12px]", dueDays < 0 ? "font-medium text-flag" : dueDays <= 3 ? "font-medium text-review" : "text-ink-muted")}>
-                        {dueLabel(ret.dueDate)}
+                      <span
+                        className={cx(
+                          "tnum text-[12px]",
+                          due.tone === "overdue"
+                            ? "font-medium text-flag"
+                            : due.tone === "soon"
+                              ? "font-medium text-review"
+                              : due.tone === "done"
+                                ? "text-ink-subtle"
+                                : "text-ink-muted",
+                        )}
+                      >
+                        {due.text}
                       </span>
                     </td>
                   </tr>
@@ -334,13 +376,21 @@ export function Dashboard() {
                 {filtered.length}
               </span>
               <div className="flex items-center gap-1">
-                <PageBtn disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                <PageBtn
+                  disabled={safePage === 0}
+                  onClick={() => setPage(safePage - 1)}
+                  label="Previous page"
+                >
                   <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} />
                 </PageBtn>
                 <span className="px-2 text-[12px] text-ink-muted tnum">
                   {safePage + 1} / {pageCount}
                 </span>
-                <PageBtn disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>
+                <PageBtn
+                  disabled={safePage >= pageCount - 1}
+                  onClick={() => setPage(safePage + 1)}
+                  label="Next page"
+                >
                   <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
                 </PageBtn>
               </div>
@@ -355,16 +405,19 @@ export function Dashboard() {
 function PageBtn({
   disabled,
   onClick,
+  label,
   children,
 }: {
   disabled: boolean;
   onClick: () => void;
+  label: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       disabled={disabled}
       onClick={onClick}
+      aria-label={label}
       className="rounded border border-line bg-surface p-1 text-ink-muted hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
@@ -441,7 +494,18 @@ function QueueRow({ r, first }: { r: RankedReturn; first: boolean }) {
   );
 }
 
-function OwnerPill({ owner, flags }: { owner: "firm" | "client"; flags: number }) {
+function OwnerPill({
+  owner,
+  flags,
+  done,
+}: {
+  owner: "firm" | "client";
+  flags: number;
+  done?: boolean;
+}) {
+  // A filed return has no next action — claiming one is a false to-do.
+  if (done)
+    return <span className="text-[11px] text-ink-subtle">Complete</span>;
   return (
     <div className="flex items-center gap-1.5">
       <span
@@ -482,6 +546,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={cx(
         "rounded-md border px-2 py-1 text-[12px] font-medium transition-colors",
         active ? "border-primary bg-primary text-surface" : "border-line bg-surface text-ink-muted hover:text-ink",

@@ -16,7 +16,8 @@ import {
   X,
 } from "lucide-react";
 import type { ReturnField } from "@/lib/types";
-import { fieldsById, documentsById } from "@/lib/data";
+import { documentsById } from "@/lib/data";
+import { computeReturn, derivationFor } from "@/lib/compute";
 import { currency } from "@/lib/format";
 import { cx } from "@/lib/cx";
 import {
@@ -41,16 +42,19 @@ export interface InspectorActions {
 
 export function Inspector({
   field,
+  allFields,
   audience,
   actions,
 }: {
   field: ReturnField;
+  /** Live (override-aware, recomputed) fields — never read the base fixtures. */
+  allFields: ReturnField[];
   audience: "firm" | "client";
   actions: InspectorActions;
 }) {
   return (
     <div className="flex h-full flex-col">
-      <InspectorHeader field={field} />
+      <InspectorHeader field={field} audience={audience} />
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
         {/* An approval request outranks everything else — put it first. */}
         {field.verification === "awaiting_approval" && audience === "firm" && (
@@ -58,10 +62,14 @@ export function Inspector({
         )}
 
         {field.affordance === "calculated" && field.inputs && (
-          <FormulaBlock field={field} onSelect={actions.onSelect} />
+          <FormulaBlock field={field} allFields={allFields} onSelect={actions.onSelect} />
         )}
 
-        <Traceability field={field} />
+        {/* A derived line with no source docs is fully explained by its
+            derivation — repeating the same sentence under "Source" is noise. */}
+        {!(field.affordance === "calculated" && field.inputs && field.sources.length === 0) && (
+          <Traceability field={field} />
+        )}
 
         {field.ai && audience === "firm" && <AiPanel field={field} />}
 
@@ -78,7 +86,18 @@ export function Inspector({
 }
 
 /* ---------------------------- header ---------------------------- */
-function InspectorHeader({ field }: { field: ReturnField }) {
+/**
+ * The client sees the same figure but none of the firm's internals — no
+ * confidence score, no provenance, no approval state. Gating here (not just in
+ * the field list) is what makes the audience toggle honest.
+ */
+function InspectorHeader({
+  field,
+  audience,
+}: {
+  field: ReturnField;
+  audience: "firm" | "client";
+}) {
   return (
     <div className="border-b border-line px-4 py-3">
       <div className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
@@ -89,12 +108,40 @@ function InspectorHeader({ field }: { field: ReturnField }) {
         <span className="text-[20px] font-semibold tnum">{currency(field.value)}</span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <ProvenanceMark provenance={field.provenance} />
-        <VerificationBadge verification={field.verification} />
-        <AffordanceHint affordance={field.affordance} />
-        {field.ai && <ConfidenceChip value={field.ai.confidence} />}
+        {audience === "firm" ? (
+          <>
+            <ProvenanceMark provenance={field.provenance} />
+            <VerificationBadge verification={field.verification} />
+            <AffordanceHint affordance={field.affordance} />
+            {field.ai && <ConfidenceChip value={field.ai.confidence} />}
+          </>
+        ) : (
+          <ClientStateBadge verification={field.verification} />
+        )}
       </div>
     </div>
+  );
+}
+
+function ClientStateBadge({ verification }: { verification: ReturnField["verification"] }) {
+  if (verification === "verified")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-sm border border-verified-line bg-verified-soft px-1.5 py-0.5 text-[11px] font-medium text-verified">
+        <Check className="h-3 w-3" strokeWidth={2.5} />
+        Reviewed by your preparer
+      </span>
+    );
+  if (verification === "flagged")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-sm border border-review-line bg-review-soft px-1.5 py-0.5 text-[11px] font-medium text-review">
+        <Flag className="h-3 w-3" strokeWidth={2.5} />
+        We have a question
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center rounded-sm border border-line bg-surface px-1.5 py-0.5 text-[11px] font-medium text-ink-subtle">
+      In progress
+    </span>
   );
 }
 
@@ -206,37 +253,78 @@ function HistoryPanel({ field }: { field: ReturnField }) {
 /* ------------------- calculated → formula ----------------------- */
 function FormulaBlock({
   field,
+  allFields,
   onSelect,
 }: {
   field: ReturnField;
+  allFields: ReturnField[];
   onSelect: (id: string) => void;
 }) {
+  // Derive from the LIVE values so an override or approved change is reflected
+  // here immediately — not from the base fixtures.
+  const values = Object.fromEntries(allFields.map((f) => [f.id, f.value]));
+  const { breakdown } = computeReturn(values);
+  const deriv = derivationFor(field.id, values, breakdown);
+
   return (
     <Section title="How this is calculated" icon={<Sparkles className="h-3.5 w-3.5" />}>
-      <p className="text-[13px] text-ink-muted">{field.transformation}</p>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {field.inputs?.map((id, i) => {
-          const input = fieldsById[id];
-          if (!input) return null;
-          return (
-            <span key={id} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-ink-subtle">+</span>}
-              <button
-                onClick={() => onSelect(id)}
-                className="group inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-1.5 py-1 text-[12px] hover:border-primary-line hover:bg-primary-soft"
-              >
-                <span className="text-ink-muted group-hover:text-primary">{input.label}</span>
-                <span className="tnum font-medium">{currency(input.value)}</span>
-                <ArrowUpRight className="h-3 w-3 text-ink-subtle group-hover:text-primary" strokeWidth={2} />
-              </button>
-            </span>
-          );
-        })}
-        <span className="text-ink-subtle">=</span>
-        <span className="rounded-sm border border-primary-line bg-primary-soft px-1.5 py-1 text-[12px] font-semibold text-primary tnum">
-          {currency(field.value)}
-        </span>
-      </div>
+      {field.transformation && (
+        <p className="mb-2 text-[13px] text-ink-muted">{field.transformation}</p>
+      )}
+
+      {deriv ? (
+        <table className="w-full text-[12.5px]">
+          <tbody>
+            {deriv.rows.map((r, i) => (
+              <tr key={i}>
+                <td className="w-5 py-0.5 align-baseline font-mono text-ink-subtle">{r.op}</td>
+                <td className="py-0.5 align-baseline">
+                  {r.fieldId ? (
+                    <button
+                      onClick={() => onSelect(r.fieldId!)}
+                      className="group inline-flex items-center gap-1 text-left text-ink-muted hover:text-primary hover:underline"
+                    >
+                      {r.label}
+                      <ArrowUpRight
+                        className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100"
+                        strokeWidth={2}
+                      />
+                    </button>
+                  ) : (
+                    <span className={r.subtotal ? "text-ink-subtle italic" : "text-ink-muted"}>
+                      {r.label}
+                    </span>
+                  )}
+                </td>
+                <td
+                  className={cx(
+                    "py-0.5 pl-3 text-right align-baseline tnum",
+                    r.subtotal ? "text-ink-subtle" : "text-ink",
+                  )}
+                >
+                  {currency(r.value)}
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td colSpan={3} className="pt-1">
+                <div className="border-t border-line-strong" />
+              </td>
+            </tr>
+            <tr>
+              <td className="w-5 py-1 align-baseline font-mono text-primary">{deriv.result.op}</td>
+              <td className="py-1 align-baseline font-semibold text-ink">{deriv.result.label}</td>
+              <td className="py-1 pl-3 text-right align-baseline font-semibold text-primary tnum">
+                {currency(deriv.result.value)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-[12.5px] text-ink-subtle">
+          Derived by the system. See the source documents below.
+        </p>
+      )}
     </Section>
   );
 }
@@ -475,9 +563,11 @@ function CorrectionPanel({
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
           <span>
             {field.affordance === "calculated"
-              ? "This line is calculated. Edit the inputs above to change it."
-              : (field.lockReason ??
-                "This value is locked and can't be edited here.")}
+              ? field.inputs
+                ? "This line is calculated. Open any input above to change it."
+                : (field.lockReason ??
+                  "This line is totalled from the source documents below — correct it at the source.")
+              : (field.lockReason ?? "This value is locked and can't be edited here.")}
           </span>
         </p>
       )}

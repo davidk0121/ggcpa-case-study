@@ -17,8 +17,10 @@
   --color-surface: #ffffff;
   --color-surface-sunken: #fafaf8;
   --color-ink: #1b1e23;
-  --color-ink-muted: #5a616b;
-  --color-ink-subtle: #8b929c;
+  --color-ink-muted: #545b65;
+  /* 4.6:1 on the canvas — the previous #8b929c was 3.1:1 and this scale
+     carries real content (table sublines, hints, timestamps), not decoration. */
+  --color-ink-subtle: #6b7280;
   --color-line: #e6e5e0;
   --color-line-strong: #d5d4ce;
 
@@ -93,4 +95,12 @@ body {
 
 ::selection {
   background: var(--color-primary-soft);
+}
+
+/* A single, consistent keyboard focus ring. Keyboard users get a clear target;
+   mouse users never see it. Matters here — the product is about affordances. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 3px;
 }

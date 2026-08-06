@@ -81,7 +81,10 @@ export function DocumentsLibrary() {
     });
   }, [query, statusFilter]);
 
-  const selected = documents.find((d) => d.id === selectedId) ?? documents[0];
+  // Follow the visible list: if a filter hides the selected document, don't
+  // keep showing its detail pane next to a list that no longer contains it.
+  const selected =
+    rows.find((d) => d.id === selectedId) ?? rows[0] ?? documents[0];
   const feeds = feedsByDoc[selected.id] ?? [];
 
   return (
@@ -131,8 +134,21 @@ export function DocumentsLibrary() {
             />
           ))}
           {rows.length === 0 && (
-            <div className="px-4 py-10 text-center text-[13px] text-ink-subtle">
-              No documents match “{query}”.
+            <div className="px-4 py-10 text-center">
+              <p className="text-[13px] text-ink-subtle">
+                {query.trim()
+                  ? `No documents match “${query}”.`
+                  : `No documents are ${STATUS_META[statusFilter!]?.label.toLowerCase() ?? "in this state"} right now.`}
+              </p>
+              <button
+                onClick={() => {
+                  setQuery("");
+                  setStatusFilter(null);
+                }}
+                className="mt-2 text-[12.5px] font-medium text-primary hover:underline"
+              >
+                Clear filters
+              </button>
             </div>
           )}
         </div>
@@ -239,7 +255,11 @@ function DocRow({
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate text-[13px] font-medium">{doc.title}</span>
-          <ProvenanceMark provenance="ai" size="xs" />
+          {/* Provenance = who supplied the document, not who read it. */}
+          <ProvenanceMark
+            provenance={doc.uploadedBy === "client" ? "client" : "human"}
+            size="xs"
+          />
         </span>
         <span className="block text-[11px] text-ink-subtle">
           {doc.pageCount} page{doc.pageCount > 1 ? "s" : ""} · feeds {feedCount} line
@@ -273,6 +293,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={cx(
         "rounded-md border px-2 py-1 text-[12px] font-medium transition-colors",
         active

@@ -11,7 +11,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import type { TaxReturn, OpenItem } from "@/lib/types";
-import { balanceLabel, dueLabel, daysUntil } from "@/lib/format";
+import { balanceLabel, dueDisplay } from "@/lib/format";
 import { stageMeta } from "@/lib/status";
 import { cx } from "@/lib/cx";
 import { StageTracker } from "@/components/status-ui";
@@ -27,6 +27,7 @@ const ITEM_ICON = {
 export function ReturnOverview({ ret }: { ret: TaxReturn }) {
   const [audience, setAudience] = useState<"firm" | "client">("firm");
   const bal = balanceLabel(ret.balance);
+  const due = dueDisplay(ret.dueDate, ret.stage);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-6">
@@ -35,8 +36,13 @@ export function ReturnOverview({ ret }: { ret: TaxReturn }) {
           <h1 className="text-[20px] font-semibold tracking-tight">{ret.client}</h1>
           <p className="mt-1 text-[12.5px] text-ink-muted">
             {ret.entityType} · TY{ret.taxYear} · {ret.id} ·{" "}
-            <span className={cx(daysUntil(ret.dueDate) <= 3 && "font-medium text-review")}>
-              {dueLabel(ret.dueDate)}
+            <span
+              className={cx(
+                due.tone === "overdue" && "font-medium text-flag",
+                due.tone === "soon" && "font-medium text-review",
+              )}
+            >
+              {due.text}
             </span>
           </p>
         </div>
