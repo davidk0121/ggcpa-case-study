@@ -4,7 +4,7 @@ A prototype for the **GGCPA AI Engineer case study**. Ledgerline is a tax‑prep
 workspace built on one idea: **every number on a return should trace back to the document it
 came from, and every AI decision should be inspectable and correctable.**
 
-**Live demo → https://ggcpa-case-study-nu.vercel.app**
+**Live demo → https://ledgerline-theta.vercel.app**
 
 Start on the dashboard, then open the **Marcus & Elena Delgado** return (`RET-2041`) — that's
 the deep, fully‑wired workbench.
