@@ -12,11 +12,12 @@ import {
   Building2,
 } from "lucide-react";
 import { cx } from "@/lib/cx";
+import { LegendPopover } from "./legend-popover";
 
 const NAV = [
   { href: "/", label: "Dashboard", Icon: LayoutDashboard, soon: false },
   { href: "/returns", label: "Returns", Icon: FolderOpen, soon: false },
-  { href: "/documents", label: "Documents", Icon: FileText, soon: true },
+  { href: "/documents", label: "Documents", Icon: FileText, soon: false },
   { href: "/messages", label: "Messages", Icon: MessageSquare, soon: true },
 ];
 
@@ -131,11 +132,12 @@ export function AppShell({
           </nav>
 
           <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-md border border-line bg-surface-sunken px-2.5 py-1.5 text-[13px] text-ink-subtle md:flex">
+            <div className="hidden items-center gap-2 rounded-md border border-line bg-surface-sunken px-2.5 py-1.5 text-[13px] text-ink-subtle lg:flex">
               <Search className="h-3.5 w-3.5" strokeWidth={2} />
               <span>Search returns, clients, documents…</span>
               <kbd className="ml-2 rounded border border-line bg-surface px-1 font-mono text-[10px]">/</kbd>
             </div>
+            <LegendPopover />
             {actions}
           </div>
         </header>

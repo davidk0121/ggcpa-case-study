@@ -3,6 +3,7 @@ import type {
   TaxDocument,
   TaxReturn,
 } from "./types";
+import { generateReturns } from "./generate";
 
 /* ================================================================== *
  * FLAGSHIP RETURN — the deep traceability demo (Challenges 01/08/10) *
@@ -22,6 +23,9 @@ export const documents: TaxDocument[] = [
     issuer: "Northwind Logistics Inc.",
     receivedAt: "2026-01-28",
     pageCount: 1,
+    status: "confirmed",
+    extractionConfidence: 99,
+    uploadedBy: "client",
     boxes: {
       e: "Marcus J. Delgado",
       employer: "Northwind Logistics Inc.",
@@ -43,6 +47,9 @@ export const documents: TaxDocument[] = [
     issuer: "Brightpath Health Systems",
     receivedAt: "2026-01-31",
     pageCount: 1,
+    status: "confirmed",
+    extractionConfidence: 98,
+    uploadedBy: "client",
     boxes: {
       e: "Elena R. Delgado",
       employer: "Brightpath Health Systems",
@@ -64,6 +71,9 @@ export const documents: TaxDocument[] = [
     issuer: "Meridian Savings Bank",
     receivedAt: "2026-02-04",
     pageCount: 1,
+    status: "extracted",
+    extractionConfidence: 97,
+    uploadedBy: "client",
     boxes: {
       payer: "Meridian Savings Bank",
       "1": "1,240.00",
@@ -77,6 +87,9 @@ export const documents: TaxDocument[] = [
     issuer: "Harbor Funds Brokerage",
     receivedAt: "2026-02-11",
     pageCount: 2,
+    status: "extracted",
+    extractionConfidence: 96,
+    uploadedBy: "client",
     boxes: {
       payer: "Harbor Funds Brokerage",
       "1a": "4,860.00",
@@ -91,6 +104,9 @@ export const documents: TaxDocument[] = [
     issuer: "Harbor Funds Brokerage",
     receivedAt: "2026-02-11",
     pageCount: 6,
+    status: "needs_review",
+    extractionConfidence: 61,
+    uploadedBy: "client",
     boxes: {
       payer: "Harbor Funds Brokerage",
       proceeds: "42,300.00",
@@ -107,6 +123,9 @@ export const documents: TaxDocument[] = [
     issuer: "Cascade Mortgage Co.",
     receivedAt: "2026-01-22",
     pageCount: 1,
+    status: "confirmed",
+    extractionConfidence: 98,
+    uploadedBy: "client",
     boxes: {
       lender: "Cascade Mortgage Co.",
       "1": "18,600.00",
@@ -121,6 +140,9 @@ export const documents: TaxDocument[] = [
     issuer: "Delgado Design LLC",
     receivedAt: "2026-03-02",
     pageCount: 3,
+    status: "needs_review",
+    extractionConfidence: 88,
+    uploadedBy: "firm",
     boxes: {
       entity: "Delgado Design LLC",
       ein: "88-4410027",
@@ -154,12 +176,14 @@ export const fields: ReturnField[] = [
         boxId: "1",
         boxLabel: "Box 1 — Wages",
         rawValue: "112,400.00",
+        page: 1,
       },
       {
         documentId: "doc-w2-elena",
         boxId: "1",
         boxLabel: "Box 1 — Wages",
         rawValue: "68,900.00",
+        page: 1,
       },
     ],
     ai: {
@@ -189,6 +213,7 @@ export const fields: ReturnField[] = [
         boxId: "1",
         boxLabel: "Box 1 — Interest income",
         rawValue: "1,240.00",
+        page: 1,
       },
     ],
     ai: {
@@ -215,6 +240,7 @@ export const fields: ReturnField[] = [
         boxId: "1a",
         boxLabel: "Box 1a — Ordinary dividends",
         rawValue: "4,860.00",
+        page: 1,
       },
     ],
     ai: {
@@ -238,6 +264,7 @@ export const fields: ReturnField[] = [
         boxId: "1b",
         boxLabel: "Box 1b — Qualified dividends",
         rawValue: "3,910.00",
+        page: 1,
       },
     ],
     ai: {
@@ -266,12 +293,15 @@ export const fields: ReturnField[] = [
         boxId: "lt_gain",
         boxLabel: "Long-term gain/loss",
         rawValue: "3,400.00",
+        page: 4,
+        section: "Part II — Long-term transactions",
       },
       {
         documentId: "doc-1099div",
         boxId: "2a",
         boxLabel: "Box 2a — Capital gain distributions",
         rawValue: "1,150.00",
+        page: 1,
       },
     ],
     ai: {
@@ -302,6 +332,8 @@ export const fields: ReturnField[] = [
         boxId: "1",
         boxLabel: "Box 1 — Ordinary business income",
         rawValue: "14,200.00",
+        page: 2,
+        section: "Part III — Partner's share of income",
       },
     ],
     ai: {
@@ -381,6 +413,7 @@ export const fields: ReturnField[] = [
         boxId: "1",
         boxLabel: "Box 1 — Mortgage interest received",
         rawValue: "18,600.00",
+        page: 1,
       },
     ],
     ai: {
@@ -406,18 +439,21 @@ export const fields: ReturnField[] = [
         boxId: "17",
         boxLabel: "Box 17 — State income tax",
         rawValue: "6,100.00",
+        page: 1,
       },
       {
         documentId: "doc-w2-elena",
         boxId: "17",
         boxLabel: "Box 17 — State income tax",
         rawValue: "3,720.00",
+        page: 1,
       },
       {
         documentId: "doc-1098",
         boxId: "10",
         boxLabel: "Box 10 — Property taxes",
         rawValue: "9,400.00",
+        page: 1,
       },
     ],
     ai: {
@@ -473,6 +509,8 @@ export const fields: ReturnField[] = [
     verification: "verified",
     transformation:
       "Statutory 2025 standard deduction for Married Filing Jointly. Itemizing ($31,800) is higher, so itemized is used.",
+    lockReason:
+      "Set by statute (IRC §63(c)). This amount is fixed for the filing status and cannot be edited — change the filing status to affect it.",
     sources: [],
   },
 
@@ -516,12 +554,14 @@ export const fields: ReturnField[] = [
         boxId: "2",
         boxLabel: "Box 2 — Federal income tax withheld",
         rawValue: "18,240.00",
+        page: 1,
       },
       {
         documentId: "doc-w2-elena",
         boxId: "2",
         boxLabel: "Box 2 — Federal income tax withheld",
         rawValue: "9,850.00",
+        page: 1,
       },
     ],
     ai: {
@@ -541,15 +581,32 @@ export const fields: ReturnField[] = [
     value: 6000,
     provenance: "client",
     affordance: "editable",
-    verification: "unverified",
+    verification: "awaiting_approval",
     transformation: "Client questionnaire — 4 quarterly payments of $1,500.",
+    proposedValue: 4500,
+    proposalReason:
+      "The IRS account transcript shows only 3 estimated payments posted for 2025. The Q4 payment the client reported does not appear. Lowering this reduces the refund by $1,500.",
     sources: [],
     ai: {
-      confidence: 68,
-      rationale: "Carried the client's stated quarterly estimate payments.",
-      evidence: ["Client questionnaire Q21: 4 × $1,500 = $6,000."],
-      concern: "Payment confirmations not yet uploaded.",
+      confidence: 82,
+      rationale:
+        "Client reported 4 quarterly payments, but only 3 are on the IRS transcript — proposing a correction down to $4,500.",
+      evidence: [
+        "Client questionnaire Q21: 4 × $1,500 = $6,000",
+        "IRS transcript: payments posted 4/15, 6/16, 9/15 — $4,500 total",
+        "No Q4 (1/15) payment found on the transcript",
+      ],
+      concern:
+        "A payment made very close to the filing date can post late. Confirm with the client before accepting.",
     },
+    history: [
+      {
+        actor: "Ledgerline AI",
+        action: "Proposed correction $6,000 → $4,500",
+        at: "2026-08-05T08:55:00",
+        note: "Transcript reconciliation",
+      },
+    ],
   },
 
   /* ------------------------------- Tax ------------------------------- */
@@ -558,12 +615,12 @@ export const fields: ReturnField[] = [
     section: "Tax",
     formLine: "Form 1040, Line 22",
     label: "Total tax",
-    value: 24600,
+    value: 23272,
     provenance: "calculated",
     affordance: "calculated",
     verification: "verified",
     transformation:
-      "Tax on taxable income $170,200, less child tax credit $4,000.",
+      "Bracket tax on taxable income, less the child tax credit. Recomputed live whenever an input changes.",
     inputs: ["f-agi", "f-itemized", "f-ctc"],
     sources: [],
   },
@@ -572,11 +629,11 @@ export const fields: ReturnField[] = [
     section: "Tax",
     formLine: "Form 1040, Line 34",
     label: "Refund",
-    value: 9490,
+    value: 10818,
     provenance: "calculated",
     affordance: "calculated",
     verification: "verified",
-    transformation: "Payments $34,090 − total tax $24,600.",
+    transformation: "Total payments − total tax. Recomputed live.",
     inputs: ["f-fed-wh", "f-est-pay", "f-total-tax"],
     sources: [],
   },
@@ -588,7 +645,8 @@ export const fieldsById = Object.fromEntries(fields.map((f) => [f.id, f]));
  * DASHBOARD DATASET — many returns at varied stages/urgency (07/06)  *
  * ================================================================== */
 
-export const returns: TaxReturn[] = [
+/** Hand-authored returns — these carry the interesting, specific edge cases. */
+export const featuredReturns: TaxReturn[] = [
   {
     id: FLAGSHIP_RETURN_ID,
     client: "Marcus & Elena Delgado",
@@ -601,7 +659,7 @@ export const returns: TaxReturn[] = [
     dueDate: "2026-08-12",
     progress: 78,
     openFlags: 3,
-    balance: 9490,
+    balance: 10818,
     lastActivity: "2026-08-05T09:20:00",
     openItems: [
       { id: "oi-1", label: "Confirm missing cost basis (3 lots)", owner: "client", kind: "question" },
@@ -770,6 +828,16 @@ export const returns: TaxReturn[] = [
       { id: "oi-12", label: "Awaiting prior-year return", owner: "client", kind: "document" },
     ],
   },
+];
+
+/**
+ * The full book of business: the hand-authored returns plus a generated tail so
+ * the dashboard, search, and prioritization are exercised at realistic volume
+ * (Challenge 07: "usable when someone owns hundreds of returns").
+ */
+export const returns: TaxReturn[] = [
+  ...featuredReturns,
+  ...generateReturns(232, 0),
 ];
 
 export const returnsById = Object.fromEntries(returns.map((r) => [r.id, r]));

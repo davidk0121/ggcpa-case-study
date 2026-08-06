@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Lock,
   ChevronRight,
+  GitPullRequestArrow,
 } from "lucide-react";
 import type { Provenance, Verification, Affordance } from "@/lib/types";
 import { cx } from "@/lib/cx";
@@ -80,6 +81,13 @@ export function VerificationBadge({ verification }: { verification: Verification
         Verified
       </span>
     );
+  if (verification === "awaiting_approval")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-sm border border-primary bg-primary px-1.5 py-0.5 text-[11px] font-medium text-surface">
+        <GitPullRequestArrow className="h-3 w-3" strokeWidth={2.5} />
+        Approval needed
+      </span>
+    );
   if (verification === "flagged")
     return (
       <span className="inline-flex items-center gap-1 rounded-sm border border-review-line bg-review-soft px-1.5 py-0.5 text-[11px] font-medium text-review">
@@ -101,6 +109,7 @@ export function VerificationBadge({ verification }: { verification: Verification
 export function accentClass(v: Verification): string {
   if (v === "flagged") return "border-l-2 border-l-review";
   if (v === "verified") return "border-l-2 border-l-verified";
+  if (v === "awaiting_approval") return "border-l-2 border-l-primary";
   return "border-l-2 border-l-ai";
 }
 
@@ -129,35 +138,79 @@ export function AffordanceHint({ affordance }: { affordance: Affordance }) {
 
 /* --- The legend: makes the whole system legible in one place ------- */
 
+/**
+ * The legend IS the design system, made inspectable. Three orthogonal axes,
+ * each with its meaning spelled out — so the same marks read identically on the
+ * dashboard, the field list, the inspector, and the documents library.
+ */
 export function AffordanceLegend() {
   return (
-    <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-[13px] sm:grid-cols-3">
-      <LegendRow title="Where it came from">
-        <ProvenanceMark provenance="ai" />
-        <ProvenanceMark provenance="client" />
-        <ProvenanceMark provenance="calculated" />
-      </LegendRow>
-      <LegendRow title="Trust state">
-        <VerificationBadge verification="verified" />
-        <VerificationBadge verification="unverified" />
-        <VerificationBadge verification="flagged" />
-      </LegendRow>
-      <LegendRow title="What you can do">
-        <AffordanceHint affordance="editable" />
-        <AffordanceHint affordance="calculated" />
-        <AffordanceHint affordance="readonly" />
-      </LegendRow>
+    <div className="space-y-4">
+      <LegendAxis
+        title="Provenance"
+        caption="Where the value came from"
+        rows={[
+          [<ProvenanceMark key="a" provenance="ai" />, "Extracted or derived by the model"],
+          [<ProvenanceMark key="b" provenance="client" />, "Supplied by the client"],
+          [<ProvenanceMark key="c" provenance="human" />, "Typed or confirmed by firm staff"],
+          [<ProvenanceMark key="d" provenance="carryforward" />, "Pulled from the prior-year return"],
+          [<ProvenanceMark key="e" provenance="calculated" />, "Computed from other lines"],
+        ]}
+      />
+      <LegendAxis
+        title="Trust state"
+        caption="How much to rely on it"
+        rows={[
+          [<VerificationBadge key="a" verification="verified" />, "A human confirmed it"],
+          [<VerificationBadge key="b" verification="unverified" />, "No one has checked it yet"],
+          [
+            <VerificationBadge key="c" verification="awaiting_approval" />,
+            "AI proposes a change — nothing moves until you approve",
+          ],
+          [<VerificationBadge key="d" verification="flagged" />, "There is a specific problem to resolve"],
+        ]}
+      />
+      <LegendAxis
+        title="Affordance"
+        caption="What you can do with it"
+        rows={[
+          [<AffordanceHint key="a" affordance="editable" />, "Change it directly"],
+          [<AffordanceHint key="b" affordance="calculated" />, "Edit its inputs instead"],
+          [<AffordanceHint key="c" affordance="readonly" />, "Locked — the reason is always shown"],
+        ]}
+      />
+      <p className="border-t border-line pt-3 text-[12px] text-ink-subtle">
+        The three axes are independent. An AI-extracted figure a reviewer confirmed is{" "}
+        <span className="font-medium text-ink-muted">AI + editable + verified</span>; a statutory
+        amount is <span className="font-medium text-ink-muted">prior-year + locked + verified</span>.
+      </p>
     </div>
   );
 }
 
-function LegendRow({ title, children }: { title: string; children: React.ReactNode }) {
+function LegendAxis({
+  title,
+  caption,
+  rows,
+}: {
+  title: string;
+  caption: string;
+  rows: Array<[React.ReactNode, string]>;
+}) {
   return (
-    <div className="space-y-1.5">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-subtle">
-        {title}
+    <div>
+      <div className="mb-1.5 flex items-baseline gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-ink">{title}</span>
+        <span className="text-[11px] text-ink-subtle">{caption}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">{children}</div>
+      <ul className="space-y-1">
+        {rows.map(([mark, meaning], i) => (
+          <li key={i} className="flex items-center gap-2.5">
+            <span className="flex w-[132px] shrink-0 justify-start">{mark}</span>
+            <span className="text-[12px] text-ink-muted">{meaning}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

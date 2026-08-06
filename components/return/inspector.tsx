@@ -8,8 +8,12 @@ import {
   Sparkles,
   RefreshCw,
   ArrowUpRight,
+  ArrowRight,
   Info,
   PenLine,
+  GitPullRequestArrow,
+  History,
+  X,
 } from "lucide-react";
 import type { ReturnField } from "@/lib/types";
 import { fieldsById, documentsById } from "@/lib/data";
@@ -31,6 +35,8 @@ export interface InspectorActions {
   onRequestClient: (id: string) => void;
   onEdit: (id: string, value: number, reason: string) => void;
   onSelect: (id: string) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
 }
 
 export function Inspector({
@@ -46,6 +52,11 @@ export function Inspector({
     <div className="flex h-full flex-col">
       <InspectorHeader field={field} />
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
+        {/* An approval request outranks everything else — put it first. */}
+        {field.verification === "awaiting_approval" && audience === "firm" && (
+          <ApprovalPanel field={field} actions={actions} />
+        )}
+
         {field.affordance === "calculated" && field.inputs && (
           <FormulaBlock field={field} onSelect={actions.onSelect} />
         )}
@@ -55,6 +66,10 @@ export function Inspector({
         {field.ai && audience === "firm" && <AiPanel field={field} />}
 
         {audience === "firm" && <CorrectionPanel field={field} actions={actions} />}
+
+        {audience === "firm" && field.history && field.history.length > 0 && (
+          <HistoryPanel field={field} />
+        )}
 
         {audience === "client" && <ClientNote field={field} />}
       </div>
@@ -80,6 +95,111 @@ function InspectorHeader({ field }: { field: ReturnField }) {
         {field.ai && <ConfidenceChip value={field.ai.confidence} />}
       </div>
     </div>
+  );
+}
+
+/* ------------------- approval (Challenge 08/10) ----------------- */
+/**
+ * "Requires approval" is a first-class state, not a styling variant: the AI has
+ * proposed a CHANGE and the live value does not move until a human decides.
+ * Approving recomputes the downstream totals immediately.
+ */
+function ApprovalPanel({
+  field,
+  actions,
+}: {
+  field: ReturnField;
+  actions: InspectorActions;
+}) {
+  const delta = (field.proposedValue ?? 0) - (field.value ?? 0);
+  return (
+    <section className="rounded-lg border-2 border-primary bg-primary-soft/40 p-3.5">
+      <h3 className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-primary">
+        <GitPullRequestArrow className="h-3.5 w-3.5" strokeWidth={2.5} />
+        AI proposes a change — your approval required
+      </h3>
+
+      <div className="mb-3 flex items-center gap-3 rounded-md border border-primary-line bg-surface px-3 py-2.5">
+        <div>
+          <div className="text-[10.5px] uppercase tracking-wide text-ink-subtle">Current</div>
+          <div className="text-[16px] font-semibold tnum text-ink-muted line-through decoration-ink-subtle/50">
+            {currency(field.value)}
+          </div>
+        </div>
+        <ArrowRight className="h-4 w-4 shrink-0 text-ink-subtle" strokeWidth={2} />
+        <div>
+          <div className="text-[10.5px] uppercase tracking-wide text-primary">Proposed</div>
+          <div className="text-[16px] font-semibold tnum text-primary">
+            {currency(field.proposedValue ?? null)}
+          </div>
+        </div>
+        <div className="ml-auto text-right">
+          <div className="text-[10.5px] uppercase tracking-wide text-ink-subtle">Impact</div>
+          <div className={cx("text-[13px] font-semibold tnum", delta < 0 ? "text-flag" : "text-verified")}>
+            {delta > 0 ? "+" : ""}
+            {currency(delta)}
+          </div>
+        </div>
+      </div>
+
+      {field.proposalReason && (
+        <p className="mb-3 text-[12.5px] text-ink">{field.proposalReason}</p>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => actions.onApprove(field.id)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-surface hover:bg-primary-strong"
+        >
+          <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+          Approve change
+        </button>
+        <button
+          onClick={() => actions.onReject(field.id)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-surface-sunken hover:text-ink"
+        >
+          <X className="h-3.5 w-3.5" strokeWidth={2} />
+          Keep current value
+        </button>
+        <button
+          onClick={() => actions.onRequestClient(field.id)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-surface-sunken hover:text-ink"
+        >
+          <Send className="h-3.5 w-3.5" strokeWidth={2} />
+          Ask the client first
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------- audit trail --------------------------------- */
+function HistoryPanel({ field }: { field: ReturnField }) {
+  return (
+    <Section title="Audit trail" icon={<History className="h-3.5 w-3.5" />}>
+      <ol className="space-y-2">
+        {field.history!.map((h, i) => (
+          <li key={i} className="flex gap-2.5">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-subtle" />
+            <div className="min-w-0">
+              <div className="text-[12.5px]">
+                <span className="font-medium">{h.actor}</span>{" "}
+                <span className="text-ink-muted">{h.action}</span>
+              </div>
+              <div className="text-[11px] text-ink-subtle">
+                {new Date(h.at).toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+                {h.note ? ` · ${h.note}` : ""}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </Section>
   );
 }
 
@@ -158,13 +278,21 @@ function Traceability({ field }: { field: ReturnField }) {
                 {refs.map((r) => (
                   <span
                     key={r.boxId}
-                    className="rounded-sm border border-ai-line bg-ai-soft px-1.5 py-0.5 font-medium text-ai"
+                    className="inline-flex items-center gap-1 rounded-sm border border-ai-line bg-ai-soft px-1.5 py-0.5 font-medium text-ai"
                   >
+                    <span className="rounded-[3px] bg-ai px-1 text-[10px] text-surface tnum">
+                      p.{r.page}/{doc.pageCount}
+                    </span>
                     {r.boxLabel} → <span className="tnum">${r.rawValue}</span>
                   </span>
                 ))}
               </div>
-              <DocumentView doc={doc} highlightBox={refs[0].boxId} />
+              {refs[0].section && (
+                <div className="mb-1 text-[11px] text-ink-subtle">
+                  Page {refs[0].page} · {refs[0].section}
+                </div>
+              )}
+              <DocumentView doc={doc} highlightBox={refs[0].boxId} page={refs[0].page} />
             </div>
           );
         })}
@@ -343,11 +471,14 @@ function CorrectionPanel({
         </div>
       )}
       {locked && !editing && (
-        <p className="mt-2 flex items-center gap-1.5 text-[12px] text-ink-subtle">
-          <Info className="h-3.5 w-3.5" strokeWidth={2} />
-          {field.affordance === "calculated"
-            ? "This line is calculated. Edit the inputs above to change it."
-            : "This value is locked by statute and can't be edited."}
+        <p className="mt-2 flex items-start gap-1.5 text-[12px] text-ink-subtle">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          <span>
+            {field.affordance === "calculated"
+              ? "This line is calculated. Edit the inputs above to change it."
+              : (field.lockReason ??
+                "This value is locked and can't be edited here.")}
+          </span>
         </p>
       )}
     </Section>

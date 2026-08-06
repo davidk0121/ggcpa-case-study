@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Eye, Building2, CalendarClock } from "lucide-react";
 import type { ReturnField, FieldSection, TaxReturn } from "@/lib/types";
 import { fields as BASE_FIELDS } from "@/lib/data";
+import { computeReturn } from "@/lib/compute";
 import { currency, dueLabel, daysUntil } from "@/lib/format";
 import { stageMeta } from "@/lib/status";
 import { cx } from "@/lib/cx";
@@ -17,7 +18,9 @@ import {
 } from "@/components/affordance";
 import { Inspector, type InspectorActions } from "./inspector";
 
-type Override = Partial<Pick<ReturnField, "value" | "verification">> & {
+type Override = Partial<
+  Pick<ReturnField, "value" | "verification" | "history">
+> & {
   note?: string;
 };
 
@@ -30,27 +33,91 @@ const SECTION_ORDER: FieldSection[] = [
   "Tax",
 ];
 
-export function ReturnView({ ret }: { ret: TaxReturn }) {
+export function ReturnView({
+  ret,
+  initialField,
+}: {
+  ret: TaxReturn;
+  /** Deep link target, resolved on the server from ?field=… */
+  initialField?: string;
+}) {
   const [audience, setAudience] = useState<"firm" | "client">("firm");
-  const [selectedId, setSelectedId] = useState<string>(BASE_FIELDS[0].id);
+  const [selectedId, setSelectedId] = useState<string>(
+    initialField && BASE_FIELDS.some((f) => f.id === initialField)
+      ? initialField
+      : BASE_FIELDS[0].id,
+  );
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
 
-  const fields = useMemo(
-    () => BASE_FIELDS.map((f) => ({ ...f, ...overrides[f.id] })),
-    [overrides],
-  );
+  /**
+   * A deep link arriving while the component is already mounted (client-side
+   * nav from the Documents library) updates the selection. Adjusting state
+   * during render is React's recommended pattern for reacting to changed props.
+   */
+  const [lastDeepLink, setLastDeepLink] = useState(initialField);
+  if (initialField !== lastDeepLink) {
+    setLastDeepLink(initialField);
+    if (initialField && BASE_FIELDS.some((f) => f.id === initialField)) {
+      setSelectedId(initialField);
+    }
+  }
+
+  const fields = useMemo(() => {
+    const merged = BASE_FIELDS.map((f) => ({ ...f, ...overrides[f.id] }));
+    // Calculated lines are genuinely derived, so an override or an approved
+    // AI change ripples through the totals and the refund immediately.
+    const values = Object.fromEntries(merged.map((f) => [f.id, f.value]));
+    const { derived } = computeReturn(values);
+    return merged.map((f) =>
+      f.id in derived ? { ...f, value: derived[f.id] } : f,
+    );
+  }, [overrides]);
+
   const selected = fields.find((f) => f.id === selectedId) ?? fields[0];
 
   const patch = (id: string, o: Override) =>
     setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
 
+  const stamp = (id: string, action: string, note?: string) => {
+    const base = BASE_FIELDS.find((f) => f.id === id);
+    const prior = overrides[id]?.history ?? base?.history ?? [];
+    return [
+      ...prior,
+      { actor: "Priya Anand", action, at: "2026-08-05T09:30:00", note },
+    ];
+  };
+
   const actions: InspectorActions = {
-    onVerify: (id) => patch(id, { verification: "verified" }),
-    onFlag: (id) => patch(id, { verification: "flagged" }),
-    onRequestClient: (id) => patch(id, { verification: "flagged", note: "Sent to client" }),
+    onVerify: (id) =>
+      patch(id, { verification: "verified", history: stamp(id, "Verified the value") }),
+    onFlag: (id) =>
+      patch(id, { verification: "flagged", history: stamp(id, "Flagged for follow-up") }),
+    onRequestClient: (id) =>
+      patch(id, {
+        verification: "flagged",
+        history: stamp(id, "Sent a question to the client"),
+      }),
     onEdit: (id, value, reason) =>
-      patch(id, { value, verification: "verified", note: reason }),
+      patch(id, {
+        value,
+        verification: "verified",
+        history: stamp(id, `Overrode the value to ${currency(value)}`, reason || undefined),
+      }),
     onSelect: (id) => setSelectedId(id),
+    onApprove: (id) => {
+      const f = BASE_FIELDS.find((x) => x.id === id);
+      if (f?.proposedValue === undefined) return;
+      patch(id, {
+        value: f.proposedValue,
+        verification: "verified",
+        history: stamp(id, `Approved the AI change to ${currency(f.proposedValue)}`),
+      });
+    },
+    onReject: (id) =>
+      patch(id, {
+        verification: "verified",
+        history: stamp(id, "Rejected the AI change; kept the current value"),
+      }),
   };
 
   const byId = Object.fromEntries(fields.map((f) => [f.id, f]));
@@ -61,6 +128,9 @@ export function ReturnView({ ret }: { ret: TaxReturn }) {
 
   const verifiedCount = fields.filter((f) => f.verification === "verified").length;
   const flaggedCount = fields.filter((f) => f.verification === "flagged").length;
+  const approvalCount = fields.filter(
+    (f) => f.verification === "awaiting_approval",
+  ).length;
 
   return (
     <div className="flex h-full flex-col">
@@ -128,8 +198,17 @@ export function ReturnView({ ret }: { ret: TaxReturn }) {
             tone="verified"
           />
           <SummaryStat
-            label={audience === "firm" ? "Verified / flagged" : "Items reviewed"}
-            value={audience === "firm" ? `${verifiedCount} / ${flaggedCount}` : `${verifiedCount} of ${fields.length}`}
+            label={audience === "firm" ? "Verified / open" : "Items reviewed"}
+            value={
+              audience === "firm"
+                ? `${verifiedCount} / ${flaggedCount + approvalCount}`
+                : `${verifiedCount} of ${fields.length}`
+            }
+            hint={
+              audience === "firm" && approvalCount > 0
+                ? `${approvalCount} awaiting approval`
+                : undefined
+            }
           />
         </div>
       </div>
@@ -228,10 +307,12 @@ function SummaryStat({
   label,
   value,
   tone,
+  hint,
 }: {
   label: string;
   value: string;
   tone?: "verified";
+  hint?: string;
 }) {
   return (
     <div className="rounded-md border border-line bg-surface px-3 py-2">
@@ -239,6 +320,7 @@ function SummaryStat({
       <div className={cx("mt-0.5 text-[16px] font-semibold tnum", tone === "verified" && "text-verified")}>
         {value}
       </div>
+      {hint && <div className="text-[10.5px] text-primary">{hint}</div>}
     </div>
   );
 }

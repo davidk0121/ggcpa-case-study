@@ -25,6 +25,7 @@ export type Affordance =
 export type Verification =
   | "unverified" // AI produced it, no human has confirmed
   | "verified" // a human confirmed it
+  | "awaiting_approval" // AI proposes a CHANGE; a human must approve or reject
   | "flagged"; // conflict / low confidence — needs a decision
 
 export interface SourceRef {
@@ -34,6 +35,10 @@ export interface SourceRef {
   boxLabel: string;
   /** The raw value as it appears on the document, before any transformation. */
   rawValue: string;
+  /** The exact page this figure was read from (1-based). */
+  page: number;
+  /** Optional section/table name within that page. */
+  section?: string;
 }
 
 export interface AiMeta {
@@ -65,6 +70,25 @@ export interface ReturnField {
   /** Field ids this value is computed from (for calculated lines). */
   inputs?: string[];
   ai?: AiMeta;
+  /**
+   * Set when `verification === "awaiting_approval"`: the AI wants to CHANGE the
+   * live value to this. Nothing moves until a human approves (Challenge 08's
+   * "what requires approval", Challenge 10's correction workflow).
+   */
+  proposedValue?: number;
+  /** Why the AI is proposing the change. */
+  proposalReason?: string;
+  /** Required when `affordance === "readonly"` — never lock without saying why. */
+  lockReason?: string;
+  /** Audit trail of human decisions on this field. */
+  history?: FieldEvent[];
+}
+
+export interface FieldEvent {
+  actor: string;
+  action: string;
+  at: string; // ISO datetime
+  note?: string;
 }
 
 export type FieldSection =
@@ -87,6 +111,13 @@ export type DocType =
   | "1098"
   | "K-1";
 
+/** Where the document is in the extraction pipeline. */
+export type ExtractionStatus =
+  | "processing" // AI is still reading it
+  | "extracted" // values pulled, not yet human-checked
+  | "needs_review" // AI hit something it isn't sure about
+  | "confirmed"; // a human signed off on the extraction
+
 export interface TaxDocument {
   id: string;
   type: DocType;
@@ -97,6 +128,11 @@ export interface TaxDocument {
   pageCount: number;
   /** Form-specific box values, keyed by boxId. Rendered by the form components. */
   boxes: Record<string, string>;
+  status: ExtractionStatus;
+  /** Overall AI confidence for this document's extraction, 0–100. */
+  extractionConfidence: number;
+  /** Who uploaded it. */
+  uploadedBy: "client" | "firm";
 }
 
 /* ------------------------------------------------------------------ */

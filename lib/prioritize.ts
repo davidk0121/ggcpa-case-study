@@ -95,3 +95,59 @@ export function prioritize(
     .map(scoreReturn)
     .sort((a, b) => b.score - a.score);
 }
+
+/* ------------------------------------------------------------------ *
+ * Manager rollup — Challenge 07 also asks the dashboard to serve      *
+ * MANAGERS, not just individual preparers. A manager's question isn't *
+ * "what do I work on" but "who is underwater, and where is the risk?" *
+ * ------------------------------------------------------------------ */
+
+export interface PreparerLoad {
+  preparer: string;
+  active: number;
+  overdue: number;
+  dueThisWeek: number;
+  flags: number;
+  waitingOnClient: number;
+  /** Highest-priority item currently on their plate. */
+  topItem?: RankedReturn;
+  /** 0–100 pressure index, for the load bar. */
+  load: number;
+}
+
+export function preparerLoads(returns: TaxReturn[]): PreparerLoad[] {
+  const groups = new Map<string, TaxReturn[]>();
+  for (const r of returns) {
+    if (r.stage === "filed") continue;
+    const list = groups.get(r.preparer) ?? [];
+    list.push(r);
+    groups.set(r.preparer, list);
+  }
+
+  const rows: PreparerLoad[] = [];
+  for (const [preparer, list] of groups) {
+    const overdue = list.filter((r) => daysUntil(r.dueDate) < 0).length;
+    const dueThisWeek = list.filter((r) => {
+      const d = daysUntil(r.dueDate);
+      return d >= 0 && d <= 7;
+    }).length;
+    const flags = list.reduce((n, r) => n + r.openFlags, 0);
+    const waitingOnClient = list.filter((r) => r.nextActionOwner === "client").length;
+    const ranked = list.map(scoreReturn).sort((a, b) => b.score - a.score);
+
+    // Pressure is driven by what can actually hurt: overdue > imminent > flags.
+    const raw = overdue * 14 + dueThisWeek * 6 + flags * 2 + list.length * 0.6;
+    rows.push({
+      preparer,
+      active: list.length,
+      overdue,
+      dueThisWeek,
+      flags,
+      waitingOnClient,
+      topItem: ranked[0],
+      load: Math.min(100, Math.round(raw)),
+    });
+  }
+
+  return rows.sort((a, b) => b.load - a.load);
+}
