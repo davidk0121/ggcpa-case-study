@@ -1,0 +1,428 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Check,
+  Flag,
+  Send,
+  Sparkles,
+  RefreshCw,
+  ArrowUpRight,
+  Info,
+  PenLine,
+} from "lucide-react";
+import type { ReturnField } from "@/lib/types";
+import { fieldsById, documentsById } from "@/lib/data";
+import { currency } from "@/lib/format";
+import { cx } from "@/lib/cx";
+import {
+  ProvenanceMark,
+  ConfidenceChip,
+  VerificationBadge,
+  AffordanceHint,
+  confidenceTone,
+} from "@/components/affordance";
+import { DocumentView } from "./document-view";
+import { reanalyzeField, type AiReanalysis } from "@/lib/mockAI";
+
+export interface InspectorActions {
+  onVerify: (id: string) => void;
+  onFlag: (id: string) => void;
+  onRequestClient: (id: string) => void;
+  onEdit: (id: string, value: number, reason: string) => void;
+  onSelect: (id: string) => void;
+}
+
+export function Inspector({
+  field,
+  audience,
+  actions,
+}: {
+  field: ReturnField;
+  audience: "firm" | "client";
+  actions: InspectorActions;
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      <InspectorHeader field={field} />
+      <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
+        {field.affordance === "calculated" && field.inputs && (
+          <FormulaBlock field={field} onSelect={actions.onSelect} />
+        )}
+
+        <Traceability field={field} />
+
+        {field.ai && audience === "firm" && <AiPanel field={field} />}
+
+        {audience === "firm" && <CorrectionPanel field={field} actions={actions} />}
+
+        {audience === "client" && <ClientNote field={field} />}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------- header ---------------------------- */
+function InspectorHeader({ field }: { field: ReturnField }) {
+  return (
+    <div className="border-b border-line px-4 py-3">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+        {field.formLine}
+      </div>
+      <div className="mt-0.5 flex items-baseline justify-between gap-3">
+        <h2 className="text-[16px] font-semibold tracking-tight">{field.label}</h2>
+        <span className="text-[20px] font-semibold tnum">{currency(field.value)}</span>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <ProvenanceMark provenance={field.provenance} />
+        <VerificationBadge verification={field.verification} />
+        <AffordanceHint affordance={field.affordance} />
+        {field.ai && <ConfidenceChip value={field.ai.confidence} />}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------- calculated → formula ----------------------- */
+function FormulaBlock({
+  field,
+  onSelect,
+}: {
+  field: ReturnField;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <Section title="How this is calculated" icon={<Sparkles className="h-3.5 w-3.5" />}>
+      <p className="text-[13px] text-ink-muted">{field.transformation}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {field.inputs?.map((id, i) => {
+          const input = fieldsById[id];
+          if (!input) return null;
+          return (
+            <span key={id} className="flex items-center gap-1.5">
+              {i > 0 && <span className="text-ink-subtle">+</span>}
+              <button
+                onClick={() => onSelect(id)}
+                className="group inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-1.5 py-1 text-[12px] hover:border-primary-line hover:bg-primary-soft"
+              >
+                <span className="text-ink-muted group-hover:text-primary">{input.label}</span>
+                <span className="tnum font-medium">{currency(input.value)}</span>
+                <ArrowUpRight className="h-3 w-3 text-ink-subtle group-hover:text-primary" strokeWidth={2} />
+              </button>
+            </span>
+          );
+        })}
+        <span className="text-ink-subtle">=</span>
+        <span className="rounded-sm border border-primary-line bg-primary-soft px-1.5 py-1 text-[12px] font-semibold text-primary tnum">
+          {currency(field.value)}
+        </span>
+      </div>
+    </Section>
+  );
+}
+
+/* ------------------- traceability (Challenge 01) ---------------- */
+function Traceability({ field }: { field: ReturnField }) {
+  if (field.sources.length === 0) {
+    return (
+      <Section title="Source" icon={<Info className="h-3.5 w-3.5" />}>
+        <p className="text-[13px] text-ink-muted">
+          {field.transformation ??
+            "Derived value — no single source document. See the calculation above."}
+        </p>
+      </Section>
+    );
+  }
+
+  // Group sources by document so multi-source figures show each form once.
+  const byDoc = field.sources.reduce<Record<string, typeof field.sources>>((acc, s) => {
+    (acc[s.documentId] ??= []).push(s);
+    return acc;
+  }, {});
+
+  return (
+    <Section title="Traced to source" icon={<ArrowUpRight className="h-3.5 w-3.5" />}>
+      {field.transformation && (
+        <div className="mb-3 rounded-md border border-line bg-surface-sunken px-3 py-2 text-[13px] text-ink-muted">
+          <span className="font-medium text-ink">Transformation: </span>
+          {field.transformation}
+        </div>
+      )}
+      <div className="space-y-3">
+        {Object.entries(byDoc).map(([docId, refs]) => {
+          const doc = documentsById[docId];
+          if (!doc) return null;
+          return (
+            <div key={docId}>
+              <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[12px]">
+                {refs.map((r) => (
+                  <span
+                    key={r.boxId}
+                    className="rounded-sm border border-ai-line bg-ai-soft px-1.5 py-0.5 font-medium text-ai"
+                  >
+                    {r.boxLabel} → <span className="tnum">${r.rawValue}</span>
+                  </span>
+                ))}
+              </div>
+              <DocumentView doc={doc} highlightBox={refs[0].boxId} />
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+/* ------------------- AI panel (Challenge 10) -------------------- */
+function AiPanel({ field }: { field: ReturnField }) {
+  const ai = field.ai!;
+  const [result, setResult] = useState<AiReanalysis | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const run = async () => {
+    setLoading(true);
+    setResult(null);
+    const r = await reanalyzeField(field);
+    setResult(r);
+    setLoading(false);
+  };
+
+  const tone = confidenceTone(ai.confidence);
+
+  return (
+    <Section
+      title="AI analysis"
+      icon={<Sparkles className="h-3.5 w-3.5 text-ai" />}
+      accent
+    >
+      {/* confidence meter */}
+      <div className="mb-3">
+        <div className="mb-1 flex items-center justify-between text-[12px]">
+          <span className="text-ink-muted">Confidence</span>
+          <span className={cx("font-semibold tnum", tone.cls)}>
+            {tone.label} · {ai.confidence}%
+          </span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-line">
+          <div
+            className={cx(
+              "h-full rounded-full",
+              ai.confidence >= 90 ? "bg-verified" : ai.confidence >= 75 ? "bg-review" : "bg-flag",
+            )}
+            style={{ width: `${ai.confidence}%` }}
+          />
+        </div>
+      </div>
+
+      <p className="text-[13px] text-ink">{ai.rationale}</p>
+
+      {ai.concern && (
+        <div className="mt-2 flex gap-2 rounded-md border border-review-line bg-review-soft px-3 py-2 text-[12.5px] text-review">
+          <Flag className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          <span>{ai.concern}</span>
+        </div>
+      )}
+
+      <div className="mt-3">
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-subtle">
+          Evidence
+        </div>
+        <ul className="space-y-1">
+          {ai.evidence.map((e) => (
+            <li key={e} className="flex gap-2 text-[12.5px] text-ink-muted">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-subtle" />
+              {e}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          onClick={run}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 rounded-md border border-ai-line bg-ai-soft px-2.5 py-1.5 text-[12px] font-medium text-ai hover:bg-ai-soft/70 disabled:opacity-60"
+        >
+          <RefreshCw className={cx("h-3.5 w-3.5", loading && "animate-spin")} strokeWidth={2} />
+          {loading ? "Re-analyzing…" : "Re-run AI check"}
+        </button>
+        {result && !loading && (
+          <span className="text-[12px] text-ink-muted">
+            {result.agreesWithCurrent ? "Model agrees with current value." : "Model suggests a change."}{" "}
+            Recommends: <span className="font-medium text-ink">{recLabel(result.recommendedAction)}</span>
+          </span>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+function recLabel(a: AiReanalysis["recommendedAction"]) {
+  return a === "accept" ? "accept as-is" : a === "review" ? "human review" : "ask the client";
+}
+
+/* ------------------- corrections (Challenge 10) ----------------- */
+function CorrectionPanel({
+  field,
+  actions,
+}: {
+  field: ReturnField;
+  actions: InspectorActions;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(field.value?.toString() ?? "");
+  const [reason, setReason] = useState("");
+
+  const locked = field.affordance === "readonly" || field.affordance === "calculated";
+
+  return (
+    <Section title="Your decision" icon={<Check className="h-3.5 w-3.5" />}>
+      {editing ? (
+        <div className="space-y-2">
+          <label className="block text-[12px] font-medium text-ink-muted">New value</label>
+          <div className="flex items-center gap-1 rounded-md border border-primary-line bg-surface px-2 focus-within:ring-2 focus-within:ring-primary/30">
+            <span className="text-ink-subtle">$</span>
+            <input
+              autoFocus
+              value={val}
+              onChange={(e) => setVal(e.target.value.replace(/[^0-9.]/g, ""))}
+              className="w-full bg-transparent py-1.5 text-[14px] tnum outline-none"
+            />
+          </div>
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Reason for the override (kept in the audit trail)"
+            className="w-full rounded-md border border-line bg-surface px-2 py-1.5 text-[12.5px] outline-none focus:border-primary-line focus:ring-2 focus:ring-primary/20"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                actions.onEdit(field.id, Number(val) || 0, reason);
+                setEditing(false);
+                setReason("");
+              }}
+              className="rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-surface hover:bg-primary-strong"
+            >
+              Save override
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="rounded-md border border-line px-3 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-surface-sunken"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <ActionBtn
+            onClick={() => actions.onVerify(field.id)}
+            disabled={field.verification === "verified"}
+            tone="verified"
+            Icon={Check}
+          >
+            {field.verification === "verified" ? "Verified" : "Verify"}
+          </ActionBtn>
+          {!locked && (
+            <ActionBtn onClick={() => setEditing(true)} tone="neutral" Icon={PenLine}>
+              Edit value
+            </ActionBtn>
+          )}
+          <ActionBtn
+            onClick={() => actions.onFlag(field.id)}
+            disabled={field.verification === "flagged"}
+            tone="review"
+            Icon={Flag}
+          >
+            Flag
+          </ActionBtn>
+          <ActionBtn onClick={() => actions.onRequestClient(field.id)} tone="neutral" Icon={Send}>
+            Ask client
+          </ActionBtn>
+        </div>
+      )}
+      {locked && !editing && (
+        <p className="mt-2 flex items-center gap-1.5 text-[12px] text-ink-subtle">
+          <Info className="h-3.5 w-3.5" strokeWidth={2} />
+          {field.affordance === "calculated"
+            ? "This line is calculated. Edit the inputs above to change it."
+            : "This value is locked by statute and can't be edited."}
+        </p>
+      )}
+    </Section>
+  );
+}
+
+function ClientNote({ field }: { field: ReturnField }) {
+  return (
+    <div className="rounded-md border border-line bg-surface-sunken px-3 py-2.5 text-[13px] text-ink-muted">
+      {field.verification === "verified"
+        ? "Your preparer has reviewed and confirmed this figure."
+        : field.verification === "flagged"
+          ? "Your preparer has a question about this item and will reach out."
+          : "Your preparer is still reviewing this figure."}
+    </div>
+  );
+}
+
+/* ---------------------------- bits ------------------------------ */
+function Section({
+  title,
+  icon,
+  accent,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  accent?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={cx(
+        "rounded-lg border p-3.5",
+        accent ? "border-ai-line bg-ai-soft/30" : "border-line bg-surface",
+      )}
+    >
+      <h3 className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
+        {icon}
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function ActionBtn({
+  onClick,
+  disabled,
+  tone,
+  Icon,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  tone: "verified" | "review" | "neutral";
+  Icon: typeof Check;
+  children: React.ReactNode;
+}) {
+  const toneCls = {
+    verified: "border-verified-line bg-verified-soft text-verified hover:bg-verified-soft/70",
+    review: "border-review-line bg-review-soft text-review hover:bg-review-soft/70",
+    neutral: "border-line bg-surface text-ink-muted hover:bg-surface-sunken",
+  }[tone];
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cx(
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-60",
+        toneCls,
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+      {children}
+    </button>
+  );
+}

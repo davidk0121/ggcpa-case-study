@@ -1,0 +1,86 @@
+import type { ReturnStage } from "./types";
+
+/**
+ * Challenge 06 — one status vocabulary that reads the same to everyone.
+ *
+ * The trick: staff and clients see the SAME stage, but the description is
+ * phrased for each audience. Clients never see internal words like
+ * "in review"; they see "We're working on it." The `step` gives a shared
+ * linear mental model (1..6).
+ */
+
+export interface StageMeta {
+  stage: ReturnStage;
+  step: number;
+  /** Firm-facing label. */
+  label: string;
+  /** Client-facing label — plain language, no jargon. */
+  clientLabel: string;
+  /** Firm-facing one-liner. */
+  detail: string;
+  /** Client-facing one-liner. */
+  clientDetail: string;
+  tone: "neutral" | "active" | "waiting" | "done";
+}
+
+export const STAGES: StageMeta[] = [
+  {
+    stage: "intake",
+    step: 1,
+    label: "Intake",
+    clientLabel: "Gathering your documents",
+    detail: "Collecting source documents from the client.",
+    clientDetail: "We're collecting the documents we need to start.",
+    tone: "waiting",
+  },
+  {
+    stage: "in_prep",
+    step: 2,
+    label: "In preparation",
+    clientLabel: "We're preparing your return",
+    detail: "Preparer is building the return.",
+    clientDetail: "Your preparer is putting your return together.",
+    tone: "active",
+  },
+  {
+    stage: "in_review",
+    step: 3,
+    label: "In review",
+    clientLabel: "We're preparing your return",
+    detail: "Reviewer is checking the return before it goes to the client.",
+    clientDetail: "A senior reviewer is double-checking everything.",
+    tone: "active",
+  },
+  {
+    stage: "client_review",
+    step: 4,
+    label: "Client review",
+    clientLabel: "Your review & signature",
+    detail: "Waiting on client to review and sign.",
+    clientDetail: "Please review your return and sign to approve.",
+    tone: "waiting",
+  },
+  {
+    stage: "ready_to_file",
+    step: 5,
+    label: "Ready to file",
+    clientLabel: "Approved — filing now",
+    detail: "Approved and queued for e-file.",
+    clientDetail: "You've approved it. We're filing with the IRS.",
+    tone: "active",
+  },
+  {
+    stage: "filed",
+    step: 6,
+    label: "Filed",
+    clientLabel: "Filed",
+    detail: "Accepted by the taxing authority.",
+    clientDetail: "Your return has been filed. Nothing more to do.",
+    tone: "done",
+  },
+];
+
+export const STAGE_COUNT = STAGES.length;
+
+export const stageMeta = (stage: ReturnStage): StageMeta =>
+  STAGES.find((s) => s.stage === stage)!;
