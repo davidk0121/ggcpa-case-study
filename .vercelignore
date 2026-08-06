@@ -1,0 +1,9 @@
+# Keep the deployment upload small — Vercel builds from source, so none of
+# these belong in the bundle. (A bloated upload was silently failing with
+# "fetch failed" and producing 0ms builds.)
+.next
+node_modules
+.git
+.claude
+npm-debug.log*
+*.tsbuildinfo
