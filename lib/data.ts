@@ -6,10 +6,8 @@ import type {
 import { generateReturns } from "./generate";
 import { computeReturn } from "./compute";
 
-/* ================================================================== *
- * FLAGSHIP RETURN — the deep traceability demo (Challenges 01/08/10) *
- * Marcus & Elena Delgado, Married Filing Jointly, TY2025.            *
- * ================================================================== */
+// The one return modeled in full detail: Marcus & Elena Delgado, MFJ, TY2025.
+// Its documents and fields below drive the workbench.
 
 export const FLAGSHIP_RETURN_ID = "RET-2041";
 
@@ -642,11 +640,9 @@ export const fields: ReturnField[] = [
 
 export const fieldsById = Object.fromEntries(fields.map((f) => [f.id, f]));
 
-/* ================================================================== *
- * DASHBOARD DATASET — many returns at varied stages/urgency (07/06)  *
- * ================================================================== */
+// The returns behind the dashboard, at a mix of stages and urgency.
 
-/** Hand-authored returns — these carry the interesting, specific edge cases. */
+/** Hand-authored returns that carry the specific edge cases. */
 export const featuredReturns: TaxReturn[] = [
   {
     id: FLAGSHIP_RETURN_ID,
@@ -831,11 +827,8 @@ export const featuredReturns: TaxReturn[] = [
   },
 ];
 
-/**
- * The full book of business: the hand-authored returns plus a generated tail so
- * the dashboard, search, and prioritization are exercised at realistic volume
- * (Challenge 07: "usable when someone owns hundreds of returns").
- */
+// The full book of business: the hand-authored returns plus a generated tail,
+// so the dashboard, search, and ranking run against a realistic volume.
 export const returns: TaxReturn[] = [
   ...featuredReturns,
   ...generateReturns(232, 0),

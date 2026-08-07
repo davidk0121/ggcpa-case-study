@@ -1,11 +1,8 @@
 import type { ReturnField } from "./types";
 
-/**
- * Challenge 10 — the AI is SIMULATED. This stub stands in for a model call:
- * it returns a plausible response in a fixed shape after a short, faked delay,
- * so the review UI (confidence, evidence, recommended action, corrections)
- * is genuinely wired end-to-end without a real model behind it.
- */
+// Stand-in for a model call. Returns a canned response in a fixed shape after a
+// short delay, so the review UI (confidence, evidence, recommended action) is
+// wired up without an actual model behind it.
 
 export interface AiReanalysis {
   fieldId: string;
@@ -46,7 +43,7 @@ export async function reanalyzeField(field: ReturnField): Promise<AiReanalysis> 
   };
 }
 
-/** The result of a human correcting the AI — used to update field state. */
+/** The result of a human correcting the AI, used to update field state. */
 export interface CorrectionResult {
   value: number;
   note: string;

@@ -1,17 +1,10 @@
 import type { TaxReturn } from "./types";
 import { daysUntil } from "./format";
 
-/**
- * Challenge 07 — real prioritization logic, not a pretty-but-useless list.
- *
- * We answer ONE question: "what should I work on right now?" So the score
- * rewards work that is (a) mine to move, (b) close to deadline, and
- * (c) blocked on my action. Returns waiting on the CLIENT are deprioritized
- * for the "my queue" view — I can't move them, so they shouldn't top my list.
- *
- * Every ranked item also carries a `reason` so the ordering is explainable,
- * never a black box.
- */
+// Ranking for the dashboard queue. The score favours work that's close to a
+// deadline, owned by the firm, and blocked on a flag. Returns waiting on the
+// client score lower, since the preparer can't move them. Each ranked item
+// keeps a short `reason` so the ordering can be shown, not just applied.
 
 export interface RankedReturn {
   ret: TaxReturn;
@@ -25,7 +18,7 @@ export function scoreReturn(ret: TaxReturn): RankedReturn {
   let score = 0;
   const reasons: string[] = [];
 
-  // Deadline pressure — the dominant factor.
+  // Deadline pressure is the biggest factor.
   if (days < 0) {
     score += 100 + Math.abs(days) * 5;
     reasons.push(`${Math.abs(days)}d overdue`);
@@ -96,11 +89,8 @@ export function prioritize(
     .sort((a, b) => b.score - a.score);
 }
 
-/* ------------------------------------------------------------------ *
- * Manager rollup — Challenge 07 also asks the dashboard to serve      *
- * MANAGERS, not just individual preparers. A manager's question isn't *
- * "what do I work on" but "who is underwater, and where is the risk?" *
- * ------------------------------------------------------------------ */
+// Manager rollup. A manager isn't asking "what do I work on" but "who on the
+// team is underwater", so this aggregates each preparer's active load.
 
 export interface PreparerLoad {
   preparer: string;
@@ -111,7 +101,7 @@ export interface PreparerLoad {
   waitingOnClient: number;
   /** Highest-priority item currently on their plate. */
   topItem?: RankedReturn;
-  /** 0–100 pressure index, for the load bar. */
+  /** Pressure index 0 to 100, for the load bar. */
   load: number;
 }
 
@@ -135,7 +125,7 @@ export function preparerLoads(returns: TaxReturn[]): PreparerLoad[] {
     const waitingOnClient = list.filter((r) => r.nextActionOwner === "client").length;
     const ranked = list.map(scoreReturn).sort((a, b) => b.score - a.score);
 
-    // Pressure is driven by what can actually hurt: overdue > imminent > flags.
+    // Weight overdue heaviest, then work due soon, then open flags.
     const raw = overdue * 14 + dueThisWeek * 6 + flags * 2 + list.length * 0.6;
     rows.push({
       preparer,

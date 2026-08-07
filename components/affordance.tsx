@@ -14,9 +14,8 @@ import {
 import type { Provenance, Verification, Affordance } from "@/lib/types";
 import { cx } from "@/lib/cx";
 
-/* ------------------------------------------------------------------ *
- * Challenge 08 — one consistent visual language for interaction state *
- * ------------------------------------------------------------------ */
+// Shared badges and marks for a field's state, reused across every screen so
+// the same value reads the same way wherever it appears.
 
 /* --- Provenance: where a value came from --------------------------- */
 
@@ -136,13 +135,8 @@ export function AffordanceHint({ affordance }: { affordance: Affordance }) {
   );
 }
 
-/* --- The legend: makes the whole system legible in one place ------- */
-
-/**
- * The legend IS the design system, made inspectable. Three orthogonal axes,
- * each with its meaning spelled out — so the same marks read identically on the
- * dashboard, the field list, the inspector, and the documents library.
- */
+// Spells out the three axes and what each badge means, so a new user doesn't
+// have to infer the system from the UI.
 export function AffordanceLegend() {
   return (
     <div className="space-y-4">

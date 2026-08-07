@@ -4,13 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, X } from "lucide-react";
 import { AffordanceLegend } from "./affordance";
 
-/**
- * The interaction legend, reachable from the header on EVERY screen.
- *
- * Challenge 08 asks for a consistent system demonstrated across contexts — this
- * makes the system itself a first-class, always-available reference rather than
- * something a new user has to reverse-engineer from the UI.
- */
+// The field-state legend, reachable from the header on every screen, so the
+// vocabulary is always one click away.
 export function LegendPopover() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

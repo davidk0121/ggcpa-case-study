@@ -1,15 +1,11 @@
 import type { TaxReturn, ReturnStage, Owner, OpenItem } from "./types";
 
-/**
- * Challenge 07 asks the dashboard to stay usable "when someone owns hundreds of
- * returns". So the demo carries a real book of business, not six demo rows.
- *
- * Generation is SEEDED and deterministic — no Math.random, no Date.now. That
- * keeps the server render and the client render byte-identical (otherwise React
- * would throw a hydration mismatch) and makes the demo reproducible.
- */
+// Fills out the book of business so the dashboard is tested against a few
+// hundred returns rather than a handful. Generation is seeded and deterministic
+// (no Math.random or Date.now), which keeps the server and client renders
+// identical and avoids a hydration mismatch.
 
-/* --- tiny deterministic PRNG (mulberry32) --------------------------- */
+// mulberry32 PRNG.
 function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -55,7 +51,7 @@ export const REVIEWERS = ["David Okafor", "You (Priya Anand)", "Rosa Castellanos
 const STAGES: ReturnStage[] = [
   "intake", "in_prep", "in_review", "client_review", "ready_to_file", "filed",
 ];
-/** Rough real-world mix — most work sits in prep/review during the season. */
+/** Rough real-world mix, most work sits in prep/review during the season. */
 const STAGE_WEIGHTS = [0.14, 0.26, 0.22, 0.16, 0.08, 0.14];
 
 const ITEM_TEMPLATES: Array<{ label: string; owner: Owner; kind: OpenItem["kind"] }> = [
@@ -107,7 +103,7 @@ export function generateReturns(count: number, startIndex = 0): TaxReturn[] {
     // Deadlines cluster near the extension deadline; a few are already late.
     const dueOffset = filed
       ? -Math.floor(r() * 30) - 1
-      : Math.floor(r() * 46) - 4; // −4 .. +41 days
+      : Math.floor(r() * 46) - 4; // -4 to +41 days
 
     const progress = filed
       ? 100

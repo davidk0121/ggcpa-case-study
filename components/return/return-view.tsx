@@ -64,8 +64,8 @@ export function ReturnView({
 
   const fields = useMemo(() => {
     const merged = BASE_FIELDS.map((f) => ({ ...f, ...overrides[f.id] }));
-    // Calculated lines are genuinely derived, so an override or an approved
-    // AI change ripples through the totals and the refund immediately.
+    // Recompute the calculated lines from the current values, so an override or
+    // an approved change flows through to the totals and the refund.
     const values = Object.fromEntries(merged.map((f) => [f.id, f.value]));
     const { derived } = computeReturn(values);
     return merged.map((f) =>

@@ -21,8 +21,8 @@ export function balanceLabel(value: number): { text: string; kind: "refund" | "d
 /**
  * Parse a "YYYY-MM-DD" as LOCAL midnight.
  *
- * `new Date("2026-08-12")` is specified to parse as *UTC* midnight, while
- * `new Date("2026-08-05T09:30:00")` parses as local — mixing the two put every
+ * `new Date("2026-08-12")` parses as UTC midnight, while
+ * `new Date("2026-08-05T09:30:00")` parses as local. Mixing the two put every
  * deadline off by a day west of Greenwich. Building from components also keeps
  * the rendered calendar date identical on the server (UTC on Vercel) and in the
  * browser, which avoids a hydration mismatch.
@@ -57,10 +57,9 @@ export function dueLabel(iso: string): string {
 }
 
 /**
- * Deadline text that respects the stage. A filed return has no deadline left
- * to miss — showing "9d overdue" next to "Filed" is the kind of contradiction
- * that makes people stop trusting the status column, so it's handled here once
- * rather than at each call site.
+ * Deadline text that respects the stage. A filed return has no deadline left to
+ * miss, so showing "9d overdue" next to "Filed" would contradict itself. Handled
+ * here once rather than at each call site.
  */
 export function dueDisplay(
   iso: string,

@@ -1,12 +1,9 @@
 import type { TaxDocument } from "@/lib/types";
 import { cx } from "@/lib/cx";
 
-/**
- * Renders a (fake) source document as a real-looking tax form with
- * highlightable boxes. `highlightBox` is driven by the selected return field,
- * so clicking a figure on the return lights up the exact box it came from —
- * the heart of Challenge 01 (source traceability).
- */
+// Draws a source document as a tax form with highlightable boxes. highlightBox
+// comes from the selected return field, so a figure on the return lights up the
+// exact box it was read from.
 
 export function DocumentView({
   doc,
@@ -15,7 +12,7 @@ export function DocumentView({
 }: {
   doc: TaxDocument;
   highlightBox?: string;
-  /** The page this figure was read from — shown so the trace is exact. */
+  /** The page this figure was read from, shown so the trace is exact. */
   page?: number;
 }) {
   return (

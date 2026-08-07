@@ -2,11 +2,9 @@ import Link from "next/link";
 import { FileQuestion, ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/shell";
 
-/**
- * A 404 that keeps you inside the product. Landing on Next's bare default —
- * no sidebar, no way back — is a jarring dead end, and global search makes a
- * mistyped return ID easy to hit.
- */
+// A 404 that stays inside the app. Next's bare default (no sidebar, no way
+// back) is a jarring dead end, and global search makes a mistyped return ID
+// easy to land on.
 export default function NotFound() {
   return (
     <AppShell breadcrumb={[{ label: "Dashboard", href: "/" }, { label: "Not found" }]}>

@@ -1,32 +1,27 @@
-/**
- * Domain model for the Ledgerline prototype.
- *
- * The interaction system (Challenge 08) is built on THREE orthogonal axes so
- * the UI can express every combination the case study asks for — what is
- * clickable, editable, AI-generated, verified, awaiting approval, or locked —
- * without a tangle of one-off flags.
- */
+// Domain model. A field is described by three independent axes (provenance,
+// affordance, verification) rather than a set of overlapping booleans, so the
+// same components can render every combination the UI needs to show.
 
-/** Where a value came from. Drives the "what is AI vs human" language. */
+/** Where a value came from. */
 export type Provenance =
   | "ai" // extracted or computed by the model
   | "human" // typed/confirmed by firm staff
   | "client" // supplied by the client (questionnaire / upload)
   | "carryforward" // pulled from the prior-year filed return
-  | "calculated"; // derived from other fields by a formula
+  | "calculated"; // derived from other fields
 
-/** What the user is allowed to DO with the value. Drives cursor/affordance. */
+/** What the user is allowed to do with the value. */
 export type Affordance =
   | "editable" // can be changed inline
-  | "readonly" // display only in this context
-  | "calculated"; // system-derived; not directly editable, but traceable
+  | "readonly" // display only
+  | "calculated"; // system-derived; edit the inputs, not this
 
-/** Trust state. Drives the review workflow (Challenge 10). */
+/** How much to trust the value. */
 export type Verification =
-  | "unverified" // AI produced it, no human has confirmed
+  | "unverified" // AI produced it, nobody has checked
   | "verified" // a human confirmed it
-  | "awaiting_approval" // AI proposes a CHANGE; a human must approve or reject
-  | "flagged"; // conflict / low confidence — needs a decision
+  | "awaiting_approval" // AI proposes a change; needs approve/reject
+  | "flagged"; // low confidence or a conflict to resolve
 
 export interface SourceRef {
   documentId: string;
@@ -42,13 +37,13 @@ export interface SourceRef {
 }
 
 export interface AiMeta {
-  /** 0–100. */
+  /** 0 to 100. */
   confidence: number;
-  /** One-line, human-readable account of what the model did. */
+  /** One line on what the model did. */
   rationale: string;
-  /** Short evidence bullets the reviewer can scan. */
+  /** Evidence bullets the reviewer can scan. */
   evidence: string[];
-  /** Present when the model is NOT confident — the reason for the flag. */
+  /** Set when the model isn't confident: why it's flagged. */
   concern?: string;
 }
 
@@ -71,14 +66,13 @@ export interface ReturnField {
   inputs?: string[];
   ai?: AiMeta;
   /**
-   * Set when `verification === "awaiting_approval"`: the AI wants to CHANGE the
-   * live value to this. Nothing moves until a human approves (Challenge 08's
-   * "what requires approval", Challenge 10's correction workflow).
+   * When verification is "awaiting_approval", the value the AI wants to change
+   * this to. The live value doesn't move until someone approves.
    */
   proposedValue?: number;
   /** Why the AI is proposing the change. */
   proposalReason?: string;
-  /** Required when `affordance === "readonly"` — never lock without saying why. */
+  /** Required for readonly fields: we don't lock a value without explaining it. */
   lockReason?: string;
   /** Audit trail of human decisions on this field. */
   history?: FieldEvent[];
@@ -100,7 +94,7 @@ export type FieldSection =
   | "Tax";
 
 /* ------------------------------------------------------------------ */
-/* Documents — rendered as real (fake) forms with highlightable boxes  */
+/* Documents, rendered as real (fake) forms with highlightable boxes  */
 /* ------------------------------------------------------------------ */
 
 export type DocType =
@@ -121,23 +115,21 @@ export type ExtractionStatus =
 export interface TaxDocument {
   id: string;
   type: DocType;
-  /** Display title, e.g. "W-2 — Northwind Logistics". */
+  /** Display title, e.g. "W-2, Northwind Logistics". */
   title: string;
   issuer: string;
   receivedAt: string; // ISO date
   pageCount: number;
-  /** Form-specific box values, keyed by boxId. Rendered by the form components. */
+  /** Box values keyed by box id, rendered by the form components. */
   boxes: Record<string, string>;
   status: ExtractionStatus;
-  /** Overall AI confidence for this document's extraction, 0–100. */
+  /** Overall extraction confidence for the document, 0 to 100. */
   extractionConfidence: number;
   /** Who uploaded it. */
   uploadedBy: "client" | "firm";
 }
 
-/* ------------------------------------------------------------------ */
-/* Returns & clients — powers the dashboard (Challenge 07) + status 06 */
-/* ------------------------------------------------------------------ */
+// Returns and clients: the data behind the dashboard and the status tracker.
 
 export type ReturnStage =
   | "intake" // gathering documents
@@ -167,12 +159,12 @@ export interface TaxReturn {
   preparer: string;
   reviewer: string;
   dueDate: string; // ISO date
-  /** 0–100 completion. */
+  /** Percent complete, 0 to 100. */
   progress: number;
   /** Unresolved AI flags on this return. */
   openFlags: number;
   openItems: OpenItem[];
-  /** Estimated refund (+) or balance due (−), in dollars. */
+  /** Positive is a refund, negative is a balance due, in dollars. */
   balance: number;
   lastActivity: string; // ISO datetime
 }

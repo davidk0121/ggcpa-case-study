@@ -1,14 +1,7 @@
-/**
- * Real (if simplified) return math.
- *
- * Calculated lines are NOT hardcoded — they're derived from their inputs here.
- * That matters for Challenge 01 and 10: when a reviewer overrides a figure or
- * approves an AI-proposed change, the totals and the refund actually move, and
- * the calculation chain shown in the UI stays honest.
- *
- * The bracket table is a simplified 2025 MFJ schedule. It is deliberately not a
- * production tax engine — see the README's "real vs simulated" section.
- */
+// Return math. The calculated lines are derived from their inputs here rather
+// than stored, so overriding a figure (or approving an AI change) moves the
+// totals and the refund. The bracket table is a simplified 2025 MFJ schedule,
+// not a real tax engine.
 
 const MFJ_BRACKETS: Array<{ upTo: number; rate: number }> = [
   { upTo: 23_850, rate: 0.1 },
@@ -70,11 +63,9 @@ export interface DerivRow {
 }
 
 /**
- * The human-readable derivation of a calculated line.
- *
- * Deliberately NOT "join every input with +": AGI *subtracts* adjustments and
- * the refund *subtracts* tax, so a uniform plus sign would render arithmetic
- * that is visibly false on the traceability screen.
+ * The step-by-step derivation shown for a calculated line. Each row carries its
+ * own operator (AGI subtracts adjustments, the refund subtracts tax), so the UI
+ * doesn't render a wrong equation by assuming everything adds.
  */
 export function derivationFor(
   fieldId: string,

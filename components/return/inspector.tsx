@@ -47,7 +47,7 @@ export function Inspector({
   actions,
 }: {
   field: ReturnField;
-  /** Live (override-aware, recomputed) fields — never read the base fixtures. */
+  /** Live (override-aware, recomputed) fields, never read the base fixtures. */
   allFields: ReturnField[];
   audience: "firm" | "client";
   actions: InspectorActions;
@@ -56,7 +56,7 @@ export function Inspector({
     <div className="flex h-full flex-col">
       <InspectorHeader field={field} audience={audience} />
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
-        {/* An approval request outranks everything else — put it first. */}
+        {/* An approval request outranks everything else, so it goes first. */}
         {field.verification === "awaiting_approval" && audience === "firm" && (
           <ApprovalPanel field={field} actions={actions} />
         )}
@@ -66,7 +66,7 @@ export function Inspector({
         )}
 
         {/* A derived line with no source docs is fully explained by its
-            derivation — repeating the same sentence under "Source" is noise. */}
+            derivation, so repeating it under "Source" would just be noise. */}
         {!(field.affordance === "calculated" && field.inputs && field.sources.length === 0) && (
           <Traceability field={field} />
         )}
@@ -86,11 +86,8 @@ export function Inspector({
 }
 
 /* ---------------------------- header ---------------------------- */
-/**
- * The client sees the same figure but none of the firm's internals — no
- * confidence score, no provenance, no approval state. Gating here (not just in
- * the field list) is what makes the audience toggle honest.
- */
+// In client view the header drops the firm-only state (confidence, provenance,
+// approval). This has to be gated here too, not only in the field list.
 function InspectorHeader({
   field,
   audience,
@@ -145,12 +142,9 @@ function ClientStateBadge({ verification }: { verification: ReturnField["verific
   );
 }
 
-/* ------------------- approval (Challenge 08/10) ----------------- */
-/**
- * "Requires approval" is a first-class state, not a styling variant: the AI has
- * proposed a CHANGE and the live value does not move until a human decides.
- * Approving recomputes the downstream totals immediately.
- */
+/* ------------------- approval ----------------------------------- */
+// The AI has proposed a change; the live value stays put until someone approves
+// or rejects. Approving recomputes the downstream totals right away.
 function ApprovalPanel({
   field,
   actions,
@@ -261,7 +255,7 @@ function FormulaBlock({
   onSelect: (id: string) => void;
 }) {
   // Derive from the LIVE values so an override or approved change is reflected
-  // here immediately — not from the base fixtures.
+  // here immediately, not from the base fixtures.
   const values = Object.fromEntries(allFields.map((f) => [f.id, f.value]));
   const { breakdown } = computeReturn(values);
   const deriv = derivationFor(field.id, values, breakdown);
@@ -329,7 +323,7 @@ function FormulaBlock({
   );
 }
 
-/* ------------------- traceability (Challenge 01) ---------------- */
+/* ------------------- traceability ------------------------------- */
 function Traceability({ field }: { field: ReturnField }) {
   if (field.sources.length === 0) {
     return (
@@ -389,7 +383,7 @@ function Traceability({ field }: { field: ReturnField }) {
   );
 }
 
-/* ------------------- AI panel (Challenge 10) -------------------- */
+/* ------------------- AI panel ----------------------------------- */
 function AiPanel({ field }: { field: ReturnField }) {
   const ai = field.ai!;
   const [result, setResult] = useState<AiReanalysis | null>(null);
@@ -477,7 +471,7 @@ function recLabel(a: AiReanalysis["recommendedAction"]) {
   return a === "accept" ? "accept as-is" : a === "review" ? "human review" : "ask the client";
 }
 
-/* ------------------- corrections (Challenge 10) ----------------- */
+/* ------------------- corrections -------------------------------- */
 function CorrectionPanel({
   field,
   actions,

@@ -1,20 +1,15 @@
 import type { ReturnStage } from "./types";
 
-/**
- * Challenge 06 — one status vocabulary that reads the same to everyone.
- *
- * The trick: staff and clients see the SAME stage, but the description is
- * phrased for each audience. Clients never see internal words like
- * "in review"; they see "We're working on it." The `step` gives a shared
- * linear mental model (1..6).
- */
+// One set of stages, worded for two audiences. Staff and client see the same
+// step number (1 to 6), but the label and description differ: a client never
+// sees "in review", they see "we're working on it".
 
 export interface StageMeta {
   stage: ReturnStage;
   step: number;
   /** Firm-facing label. */
   label: string;
-  /** Client-facing label — plain language, no jargon. */
+  /** Client-facing label, plain language, no jargon. */
   clientLabel: string;
   /** Firm-facing one-liner. */
   detail: string;

@@ -166,7 +166,7 @@ export function Dashboard() {
         <Metric label="Waiting on clients" value={metrics.waiting} hint="ball in their court" Icon={UserRoundCheck} tone="neutral" />
       </div>
 
-      {/* Manager rollup — a different question: who's underwater? */}
+      {/* Manager rollup: a different question, who's underwater? */}
       {scope === "manager" && (
         <section className="mt-7">
           <div className="mb-2 flex items-center justify-between">
@@ -310,7 +310,7 @@ export function Dashboard() {
         </section>
       )}
 
-      {/* Full table — search, filter, paginate */}
+      {/* Full table: search, filter, paginate */}
       <section className="mt-7">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h2 className="text-[13px] font-semibold uppercase tracking-wide text-ink-muted">
@@ -332,7 +332,7 @@ export function Dashboard() {
 
         <div className="mb-2 flex flex-wrap gap-1">
           <FilterChip label="All" active={stageFilter === null} onClick={() => reset(() => setStageFilter(null))} />
-          {/* Pipeline order — matches the 6-step status model everywhere else. */}
+          {/* Pipeline order, matching the 6-step status model used elsewhere. */}
           {["intake", "in_prep", "in_review", "client_review", "ready_to_file", "filed"].map((s) => (
             <FilterChip
               key={s}
@@ -560,7 +560,7 @@ function OwnerPill({
   flags: number;
   done?: boolean;
 }) {
-  // A filed return has no next action — claiming one is a false to-do.
+  // A filed return has no next action, claiming one is a false to-do.
   if (done)
     return <span className="text-[11px] text-ink-subtle">Complete</span>;
   return (

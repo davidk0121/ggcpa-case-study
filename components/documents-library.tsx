@@ -10,15 +10,9 @@ import { cx } from "@/lib/cx";
 import { ConfidenceChip, ProvenanceMark } from "@/components/affordance";
 import { DocumentView } from "@/components/return/document-view";
 
-/**
- * Challenge 08 asks the interaction system to prove itself across SEVERAL
- * screens. This is the third surface (after the dashboard and the workbench):
- * the same provenance marks, confidence chips, and status language, applied to
- * documents rather than return lines.
- *
- * It doubles as the reverse traceability direction — from a document, see every
- * return line it feeds.
- */
+// The documents list. Reuses the same marks and status language as the rest of
+// the app, and shows traceability in reverse: from a document to the return
+// lines that depend on it.
 
 const STATUS_META: Record<
   ExtractionStatus,

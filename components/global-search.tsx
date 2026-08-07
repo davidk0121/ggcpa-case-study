@@ -15,14 +15,10 @@ import { stageMeta } from "@/lib/status";
 import { balanceLabel, dueDisplay } from "@/lib/format";
 import { cx } from "@/lib/cx";
 
-/**
- * Global search — one box that reaches every object type in the product.
- *
- * This is the navigation backbone (Challenge 04): from anywhere, jump straight
- * to a return, a document, or a *specific line on the return* — the last one
- * deep-links with ?field=, so you land with that figure already selected and
- * its source document open. At 242 returns, search is how you actually move.
- */
+// One search box across returns, documents, and individual return lines.
+// Picking a line deep-links with ?field=, so you land on the workbench with
+// that figure selected and its source open. With a few hundred returns, this is
+// how you actually get around.
 
 type Hit =
   | { kind: "return"; id: string; title: string; sub: string; href: string }
