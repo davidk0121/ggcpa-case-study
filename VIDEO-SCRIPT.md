@@ -21,7 +21,7 @@
 
 [상단 숫자 4개를 가리키며]
 
-> "The dashboard answers one question: what should I work on right now?
+> "The dashboard is built to show me what to work on right now.
 > These four numbers each point to something I need to act on. They're not just for show."
 
 [**"Waiting on your approval"** 밴드를 가리키며]
@@ -49,8 +49,8 @@
 
 [**Wages** 필드 클릭 → 오른쪽 패널 가리키며]
 
-> "This number is $181,300. Where did it come from?
-> The panel shows the two W-2 forms it came from, with the exact box marked, and how they were added up."
+> "This number is $181,300. The panel on the right shows exactly where it came from:
+> the two W-2 forms, with the exact box marked, and how they were added up."
 
 [**Capital gain** 필드 클릭]
 
