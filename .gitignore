@@ -39,12 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-.vercel
-
-# local AI-assistant config (not part of the project)
-CLAUDE.md
-AGENTS.md
-
-# editor/tooling
-.claude/
